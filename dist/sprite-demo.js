@@ -152,8 +152,8 @@ function main() {
             objectManager.update(deltaTime);
             const currentScene = sceneManager.getCurrentScene();
             if (currentScene) {
-                // console.log(`Rendering scene: ${currentScene.name}`);
-                renderer.renderScene(currentScene, objectManager, assetLoader);
+                // Pass deltaTime to renderScene
+                renderer.renderScene(currentScene, objectManager, assetLoader, deltaTime);
             }
             else {
                 renderer.resize(renderer.viewportWidth, renderer.viewportHeight);
