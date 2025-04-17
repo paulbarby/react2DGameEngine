@@ -1,5 +1,5 @@
-import { AssetManifest, SpriteDefinition } from '../../types/project';
-import { Asset, LoadedAssets } from '../../types/core';
+import { AssetManifest, SpriteDefinition } from '../../types/project.js'; // Added .js
+import { Asset, LoadedAssets } from '../../types/core.js'; // Added .js
 
 export class AssetLoader {
     public loadedAssets: LoadedAssets = new Map();

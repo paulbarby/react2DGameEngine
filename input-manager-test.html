@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InputManager Test</title>
+    <style>
+        /* ... existing styles ... */
+        body { font-family: sans-serif; padding: 20px; }
+        pre { background-color: #eee; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; word-wrap: break-word; }
+        #target { width: 400px; height: 300px; border: 1px solid blue; margin-top: 10px; position: relative; background-color: #f0f8ff; }
+        #mouse-display { position: absolute; top: 0; left: 0; background-color: rgba(0,0,0,0.1); padding: 2px 5px; font-size: 0.8em; pointer-events: none; /* Prevent display from interfering */ }
+    </style>
+</head>
+<body>
+    <h1>InputManager Test</h1>
+    <p>Focus this window/element and interact with your keyboard and mouse.</p>
+
+    <h2>Input State:</h2>
+    <div>
+        <strong>Keys Down:</strong>
+        <pre id="keys-down">[]</pre>
+    </div>
+    <div>
+        <strong>Mouse Position (relative to blue box):</strong>
+        <pre id="mouse-pos">x: 0, y: 0</pre>
+    </div>
+    <div>
+        <strong>Mouse Buttons Down:</strong>
+        <pre id="mouse-buttons">[]</pre>
+    </div>
+
+    <div id="target" tabindex="0"> <!-- Added tabindex to make it focusable -->
+        <div id="mouse-display">Mouse Pos: 0, 0</div>
+        <p style="padding: 10px;">Click inside this blue box to focus, then use keyboard/mouse.</p>
+    </div>
+
+    <!-- Updated script path to compiled JS in dist -->
+    <script type="module" src="/dist/input-manager-test.js"></script>
+</body>
+</html>

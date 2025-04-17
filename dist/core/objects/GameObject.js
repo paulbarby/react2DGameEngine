@@ -1,51 +1,36 @@
-import { IGameObject, IComponent } from '../../types/core.js';
-import { GameObjectConfig } from '../../types/project.js';
-
-export class GameObject implements IGameObject {
-    public readonly id: string;
-    public name: string;
-    public x: number;
-    public y: number;
-    public rotation: number; // in radians
-    public scaleX: number;
-    public scaleY: number;
-    public components: IComponent[] = []; // Use array for order if needed
-
-    constructor(config: GameObjectConfig) {
+export class GameObject {
+    constructor(config) {
+        this.components = []; // Use array for order if needed
         this.id = config.id;
         this.name = config.name;
         this.x = config.x;
         this.y = config.y;
         this.rotation = 0; // Default rotation
-        this.scaleX = 1;   // Default scale
-        this.scaleY = 1;   // Default scale
+        this.scaleX = 1; // Default scale
+        this.scaleY = 1; // Default scale
         // Components are added by ObjectManager after construction
     }
-
-    update(deltaTime: number): void {
+    update(deltaTime) {
         for (const component of this.components) {
             component.update(deltaTime);
         }
     }
-
-    addComponent(component: IComponent): void {
+    addComponent(component) {
         this.components.push(component);
         component.gameObject = this;
         // Defer init call to ObjectManager after all components might be added?
         // Or call it here? Plan says call here.
         component.init();
     }
-
-    getComponent<T extends IComponent>(typeConstructor: { new(...args: any[]): T }): T | undefined {
+    getComponent(typeConstructor) {
         for (const component of this.components) {
             if (component instanceof typeConstructor) {
-                return component as T;
+                return component;
             }
         }
         return undefined;
     }
-
-    destroy(): void {
+    destroy() {
         // Call destroy on components in reverse order of addition? Or forward?
         // Forward seems simpler.
         for (const component of this.components) {

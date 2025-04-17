@@ -1,0 +1,16 @@
+{
+  "image": "playerShip",
+  "frameWidth": 64,
+  "frameHeight": 96,
+  "sprites": {
+    "idle": { "x": 0, "y": 0 },
+    "thrust": { "x": 64, "y": 0 }
+  },
+  "animations": {
+    "flying": {
+      "frames": ["idle", "thrust"],
+      "duration": 0.5,
+      "loop": true
+    }
+  }
+}

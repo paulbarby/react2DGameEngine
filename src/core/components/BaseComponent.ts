@@ -1,4 +1,4 @@
-import { IComponent, IGameObject } from '../../types/core';
+import { IComponent, IGameObject } from '../../types/core.js';
 
 export abstract class BaseComponent implements IComponent {
     public gameObject: IGameObject | null = null;

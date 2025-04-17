@@ -1,0 +1,16 @@
+// filepath: c:\Users\paulb\Documents\Development\Fun\Space Shooter\tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2016", // Or a newer target like ES2020
+    "module": "ESNext", // Use ES modules for browser compatibility
+    "outDir": "./dist", // Output compiled JS to a 'dist' folder
+    "rootDir": "./src", // Source files are in 'src'
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node" // Or "bundler" if using newer TS/Node versions
+  },
+  "include": ["src/**/*"], // Compile files in the src directory
+  "exclude": ["node_modules"]
+}
