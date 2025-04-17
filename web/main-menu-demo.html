@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Menu UI Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            margin: 0;
+        }
+        .menu-container {
+            background-color: #34495e;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 300px;
+        }
+        h1 {
+            color: #1abc9c;
+            margin-bottom: 30px;
+        }
+        .menu-options button {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: #ecf0f1;
+            background-color: #16a085;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .menu-options button:hover {
+            background-color: #1abc9c;
+        }
+        .panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #2c3e50;
+            border-radius: 5px;
+            text-align: left;
+            display: none; /* Hidden by default */
+        }
+        .panel h2 {
+            margin-top: 0;
+            color: #1abc9c;
+            border-bottom: 1px solid #7f8c8d;
+            padding-bottom: 5px;
+        }
+        .panel label {
+            display: block;
+            margin-bottom: 8px;
+            color: #bdc3c7;
+        }
+        .panel input[type="range"],
+        .panel input[type="checkbox"] {
+            margin-bottom: 15px;
+        }
+        .panel input[type="checkbox"] {
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .close-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 8px 15px;
+            background-color: #c0392b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            float: right;
+        }
+        .close-button:hover {
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-container">
+        <h1>Space Shooter</h1>
+        <div class="menu-options">
+            <button id="start-button">Start Game</button>
+            <button id="scores-button">High Scores</button>
+            <button id="options-button">Options</button>
+            <button id="exit-button">Exit</button>
+        </div>
+
+        <!-- High Scores Panel (Hidden) -->
+        <div id="scores-panel" class="panel">
+            <h2>High Scores</h2>
+            <ol>
+                <li>Player 1 - 10000</li>
+                <li>Player 2 - 8500</li>
+                <li>Player 3 - 7000</li>
+            </ol>
+            <button class="close-button" data-panel="scores-panel">Close</button>
+        </div>
+
+        <!-- Options Panel (Hidden) -->
+        <div id="options-panel" class="panel">
+            <h2>Options</h2>
+            <label for="volume-slider">Master Volume:</label>
+            <input type="range" id="volume-slider" name="volume" min="0" max="100" value="80">
+
+            <label for="sfx-toggle">
+                <input type="checkbox" id="sfx-toggle" name="sfx" checked> Sound Effects
+            </label>
+             <label for="music-toggle">
+                <input type="checkbox" id="music-toggle" name="music" checked> Music
+            </label>
+            <button class="close-button" data-panel="options-panel">Close</button>
+        </div>
+    </div>
+
+    <script type="module" src="/dist/main-menu-demo.js"></script>
+</body>
+</html>

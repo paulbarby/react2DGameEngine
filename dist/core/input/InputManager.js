@@ -35,7 +35,16 @@ export class InputManager {
         // Remove contextmenu listener if added
     }
     handleKeyDown(event) {
+        var _a;
         const keyboardEvent = event; // Type assertion
+        // Prevent default browser behavior for relevant keys (scrolling, etc.)
+        // Check if the target is NOT an input field to allow typing in inputs
+        const targetTagName = (_a = event.target) === null || _a === void 0 ? void 0 : _a.tagName;
+        const isInput = targetTagName === 'INPUT' || targetTagName === 'TEXTAREA' || targetTagName === 'SELECT';
+        if (!isInput && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(keyboardEvent.code)) {
+            console.log(`InputManager: Preventing default for ${keyboardEvent.code}`); // Log prevention
+            keyboardEvent.preventDefault();
+        }
         // Log only if it's a new key press
         if (!this.keysDown.has(keyboardEvent.code)) {
             console.log(`InputManager: Key down - ${keyboardEvent.code}`); // Added log

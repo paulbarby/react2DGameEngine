@@ -58,11 +58,10 @@ export class GameLoop {
         // Get the current scene
         const currentScene = this.sceneManager.getCurrentScene();
         if (currentScene) {
-            // Render the scene using the Renderer
-            this.renderer.renderScene(currentScene, this.objectManager, this.assetLoader);
+            // Pass deltaTime to renderScene for starfield calculation
+            this.renderer.renderScene(currentScene, this.objectManager, this.assetLoader, deltaTime);
         }
         else {
-            // Optionally render a "no scene loaded" message or clear screen
             this.renderer.resize(this.renderer.viewportWidth, this.renderer.viewportHeight); // Effectively clears
             // console.log("No scene loaded, skipping render.");
         }

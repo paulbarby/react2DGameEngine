@@ -8,6 +8,7 @@
     "explosion": "/assets/sounds/explode.wav"
   },
   "spriteSheets": {
-    "playerSheet": "/assets/defs/player_def.json"
+    "playerSheet": "/assets/defs/player_def.json",
+    "enemySheet": "/assets/defs/enemy_def.json"
   }
 }

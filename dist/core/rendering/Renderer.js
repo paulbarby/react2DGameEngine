@@ -1,6 +1,8 @@
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Added .js
 export class Renderer {
     constructor(canvas) {
+        this.stars = [];
+        this.starScrollY = 0; // Tracks overall scroll offset
         const context = canvas.getContext('2d');
         if (!context) {
             throw new Error('Failed to get 2D rendering context');
@@ -9,18 +11,47 @@ export class Renderer {
         this.canvas = canvas;
         this.viewportWidth = canvas.width;
         this.viewportHeight = canvas.height;
+        this.initStars(200); // Initialize stars
+    }
+    initStars(count) {
+        this.stars = [];
+        for (let i = 0; i < count; i++) {
+            this.stars.push({
+                x: Math.random() * this.viewportWidth,
+                y: Math.random() * this.viewportHeight,
+                speed: 0.5 + Math.random() * 1.0, // Different speeds for parallax
+                size: 0.5 + Math.random() * 1.5 // Different sizes
+            });
+        }
     }
     resize(width, height) {
         this.canvas.width = width;
         this.canvas.height = height;
         this.viewportWidth = width;
         this.viewportHeight = height;
+        this.initStars(this.stars.length); // Reinitialize stars on resize
         // May need to reset context properties if they depend on size
     }
-    renderScene(scene, objectManager, assetLoader) {
-        // Clear canvas
-        this.ctx.clearRect(0, 0, this.viewportWidth, this.viewportHeight);
-        // console.log("Canvas cleared"); // Optional: Check if clearing happens
+    drawStarfield(deltaTime) {
+        const baseScrollSpeed = 50; // Pixels per second for the fastest stars
+        this.starScrollY += baseScrollSpeed * deltaTime; // Update scroll offset
+        this.ctx.save();
+        this.ctx.fillStyle = 'white';
+        for (const star of this.stars) {
+            // Calculate current Y position with scroll offset and speed multiplier
+            const currentY = (star.y + this.starScrollY * star.speed) % this.viewportHeight;
+            this.ctx.beginPath();
+            this.ctx.arc(star.x, currentY, star.size / 2, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        this.ctx.restore();
+    }
+    renderScene(scene, objectManager, assetLoader, deltaTime) {
+        // Clear canvas (optional: could draw a solid background color instead)
+        this.ctx.fillStyle = '#00001a'; // Dark blue background
+        this.ctx.fillRect(0, 0, this.viewportWidth, this.viewportHeight);
+        // Draw scrolling starfield first (behind everything)
+        this.drawStarfield(deltaTime);
         // Sort layers by depth (ascending)
         const sortedLayers = [...scene.layers].sort((a, b) => a.depth - b.depth);
         // Loop through sorted layers
