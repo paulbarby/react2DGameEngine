@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssetLoader Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        pre { background-color: #eee; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; word-wrap: break-word; max-height: 300px; overflow-y: auto;}
+        #status { font-weight: bold; }
+        #loaded-assets img { max-width: 50px; max-height: 50px; border: 1px solid #ddd; margin: 5px; vertical-align: middle;}
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>AssetLoader Test</h1>
+    <button id="load-button">Load Assets (from /assets/manifest.json)</button>
+    <div id="status">Status: Idle</div>
+    <h2>Manifest Content:</h2>
+    <pre id="manifest-content">Not loaded yet.</pre>
+    <h2>Loading Log:</h2>
+    <pre id="log">Click the button to start loading...</pre>
+    <h2>Loaded Assets Overview:</h2>
+    <div id="loaded-assets">None</div>
+
+    <script type="module" src="/dist/asset-loader-test.js"></script>
+</body>
+</html>

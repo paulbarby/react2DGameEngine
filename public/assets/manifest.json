@@ -1,0 +1,13 @@
+{
+  "images": {
+    "playerShip": "/assets/images/player.png",
+    "enemyShip": "/assets/images/enemy.png"
+  },
+  "sounds": {
+    "laserShoot": "/assets/sounds/shoot.wav",
+    "explosion": "/assets/sounds/explode.wav"
+  },
+  "spriteSheets": {
+    "playerSheet": "/assets/defs/player_def.json"
+  }
+}
