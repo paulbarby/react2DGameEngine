@@ -1,0 +1,18 @@
+{
+  "image": "playerBullet",
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "sprites": {
+    "frame1": { "x": 0, "y": 0 },
+    "frame2": { "x": 0, "y": 16 },
+    "frame3": { "x": 0, "y": 32 },
+    "frame4": { "x": 0, "y": 46 }
+  },
+  "animations": {
+    "flying": {
+      "frames": ["frame1","frame2","frame3","frame4"],
+      "duration": 0.1,
+      "loop": true
+    }
+  }
+}

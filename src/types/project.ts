@@ -21,7 +21,11 @@ export interface SpriteDefinition {
 
 export interface ComponentConfig {
     type: string; // Matches a registered component type name
-    properties: { [key: string]: any };
+    // Add anchor property documentation here or rely on component definition
+    properties: {
+        anchor?: { x: number, y: number }; // Normalized anchor point (0,0 = TL, 0.5,0.5 = Center)
+        [key: string]: any;
+    };
 }
 
 export interface GameObjectConfig {

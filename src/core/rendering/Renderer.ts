@@ -111,7 +111,7 @@ export class Renderer {
     private drawObject(object: IGameObject, assetLoader: AssetLoader): void {
         this.ctx.save();
 
-        // Apply object transforms
+        // Apply object transforms (position is now the anchor point)
         this.ctx.translate(object.x, object.y);
         this.ctx.rotate(object.rotation);
         this.ctx.scale(object.scaleX, object.scaleY);
@@ -120,11 +120,13 @@ export class Renderer {
         const spriteComp = object.getComponent(SpriteComponent);
         if (spriteComp) {
             let image: HTMLImageElement | undefined;
-            let sx = spriteComp.sourceX, sy = spriteComp.sourceY, sw = spriteComp.sourceWidth, sh = spriteComp.sourceHeight; // Source rect from component
-            let dx = -spriteComp.offsetX, dy = -spriteComp.offsetY; // Destination pos (relative to object x/y)
-            let dw = spriteComp.width, dh = spriteComp.height; // Destination size
+            let sx = spriteComp.sourceX, sy = spriteComp.sourceY, sw = spriteComp.sourceWidth, sh = spriteComp.sourceHeight;
+            // dx/dy are now calculated relative to the anchor point (object.x, object.y)
+            // using the component's calculated offsetX/offsetY
+            let dx = -spriteComp.offsetX;
+            let dy = -spriteComp.offsetY;
+            let dw = spriteComp.width, dh = spriteComp.height;
 
-            // Flag to check if we need to update component's source rect info
             let updateComponentSourceRect = false;
 
             // Case 1: Sprite sheet reference ("sheetKey/spriteName")
@@ -165,7 +167,7 @@ export class Renderer {
                  }
             }
 
-            // Update component's source rect info if needed
+            // Update component's source rect info AND OFFSET if needed
             if (updateComponentSourceRect && sw > 0 && sh > 0) {
                 spriteComp.sourceX = sx;
                 spriteComp.sourceY = sy;
@@ -177,33 +179,38 @@ export class Renderer {
                 // Re-read potentially updated dimensions for this draw call
                 dw = spriteComp.width;
                 dh = spriteComp.height;
+
+                // *** IMPORTANT: Update offset based on potentially new dimensions ***
+                spriteComp.updateOffsetFromAnchor();
+                // *** Update dx/dy based on the potentially new offset ***
+                dx = -spriteComp.offsetX;
+                dy = -spriteComp.offsetY;
             }
 
             // Draw if we have an image and source dimensions
             if (image && sw > 0 && sh > 0) {
-                 // --- Add Logging ---
-                 // console.log(`Drawing ${object.name}: img=${image.src.substring(image.src.lastIndexOf('/')+1)}, sx=${sx}, sy=${sy}, sw=${sw}, sh=${sh}, dx=${dx}, dy=${dy}, dw=${dw}, dh=${dh}`);
+                 // Draw image relative to the anchor point using calculated dx, dy
                  this.ctx.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
-            } else if (!spriteComp.imageKey && !spriteComp.currentSheetKey) {
-                // Optionally draw a placeholder if spriteRef is invalid/not set
-                 this.ctx.fillStyle = 'magenta';
-                 this.ctx.fillRect(dx, dy, dw || 10, dh || 10); // Draw placeholder
-                 console.warn(`SpriteComponent on ${object.name} has invalid spriteRef: ${spriteComp.spriteRef}`);
-            } else if (!image) {
-                 console.warn(`Image not found for ${object.name} (key: ${spriteComp.imageKey || 'unknown'})`);
-                 // Draw placeholder if image missing
-                 this.ctx.fillStyle = 'red';
-                 this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
             } else {
-                 console.warn(`Source dimensions invalid for ${object.name} (sw=${sw}, sh=${sh})`);
-                 // Draw placeholder if source rect invalid
-                 this.ctx.fillStyle = 'orange';
-                 this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
+                // Optionally draw a placeholder if spriteRef is invalid/not set
+                 if (!spriteComp.imageKey && !spriteComp.currentSheetKey) {
+                     this.ctx.fillStyle = 'magenta';
+                     this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
+                     console.warn(`SpriteComponent on ${object.name} has invalid spriteRef: ${spriteComp.spriteRef}`);
+                 } else if (!image) {
+                     this.ctx.fillStyle = 'red';
+                     this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
+                     console.warn(`Image not found for ${object.name} (key: ${spriteComp.imageKey || 'unknown'})`);
+                 } else {
+                     this.ctx.fillStyle = 'orange';
+                     this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
+                     console.warn(`Source dimensions invalid for ${object.name} (sw=${sw}, sh=${sh})`);
+                 }
             }
         } else {
-            // Handle other renderable components or draw a default placeholder
+            // Handle other renderable components or draw a default placeholder at object's origin
             this.ctx.fillStyle = 'grey';
-            this.ctx.fillRect(-5, -5, 10, 10); // Default placeholder
+            this.ctx.fillRect(-5, -5, 10, 10); // Draw centered at object x/y
         }
         // --- End Rendering Logic ---
 

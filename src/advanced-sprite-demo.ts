@@ -50,7 +50,10 @@ async function main() {
         id: 'player', name: 'Player', type: 'player',
         x: canvas.width / 2, y: canvas.height - 100, layerId: 'main',
         components: [
-            { type: 'SpriteComponent', properties: { spriteRef: 'playerSheet/idle' } },
+            { type: 'SpriteComponent', properties: {
+                spriteRef: 'playerSheet/idle',
+                anchor: { x: 0.5, y: 0.5 } // Set anchor to center
+            } },
             { type: 'PlayerControllerComponent', properties: {
                 speed: 250,
                 inputManager: inputManager, // Pass input manager instance
@@ -68,7 +71,10 @@ async function main() {
             layerId: 'main',
             components: [
                 // Use direct image key for enemy sprite
-                { type: 'SpriteComponent', properties: { spriteRef: 'enemySheet/idle' } }, // Assuming enemyShip is a direct image key
+                { type: 'SpriteComponent', properties: {
+                    spriteRef: 'enemySheet/idle',
+                    anchor: { x: 0.5, y: 0.5 } // Also center enemies
+                } }, // Assuming enemyShip is a direct image key
                 { type: 'EnemyMovementComponent', properties: {
                     speed: 50 + Math.random() * 50, // Random speeds
                     bounds: { width: canvas.width, height: canvas.height }
