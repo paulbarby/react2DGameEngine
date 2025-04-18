@@ -13,8 +13,22 @@ export class GameObject {
         // Components are added by ObjectManager after construction
     }
     update(deltaTime) {
+        // Log specifically for bullets to see their components
+        if (this.type === 'bullet') {
+            const componentTypes = this.components.map(c => c.constructor.name).join(', ');
+            console.log(`GameObject Update: Bullet ${this.id} updating components: [${componentTypes}]`);
+        }
         for (const component of this.components) {
-            component.update(deltaTime);
+            // Log before calling component update, especially for bullets
+            if (this.type === 'bullet') {
+                console.log(` -> Calling update on ${component.constructor.name} for bullet ${this.id}`);
+            }
+            try {
+                component.update(deltaTime);
+            }
+            catch (error) {
+                console.error(`Error updating component ${component.constructor.name} on ${this.name}:`, error);
+            }
         }
     }
     addComponent(component) {

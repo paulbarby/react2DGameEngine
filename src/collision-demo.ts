@@ -41,8 +41,14 @@ const bulletPrefab: Omit<GameObjectConfig, 'id' | 'x' | 'y'> = {
         // Add AnimationComponent config - assetLoader will be passed dynamically
         { type: 'AnimationComponent', properties: {
             defaultAnimation: 'default' // Name matches the key in bullet1_def.json
+        }},
+        // Add BulletMovementComponent directly to the prefab
+        // ObjectManager will inject 'objectManager' dependency
+        { type: 'BulletMovementComponent', properties: {
+            speed: 400,
+            bounds: { top: -20 }
+            // objectManager is injected by ObjectManager
         }}
-        // NOTE: BulletMovementComponent is added dynamically later
     ]
 };
 
@@ -134,47 +140,51 @@ async function main() {
     if (!currentScene) { updateStatus('Error getting current scene.'); return; }
     objectManager.createObjectsForScene(currentScene);
 
-    // Add BulletMovementComponent dynamically AFTER objects are created
-    // And set up collision callbacks
-    for (const obj of Array.from(objectManager.getAllObjects())) {
-        // Add BulletMovementComponent to bullets
-        if (obj.type === 'bullet') {
-            console.log(`Adding BulletMovementComponent to ${obj.name} (${obj.id})`);
-            obj.addComponent(new BulletMovementComponent({
-                speed: 400,
-                objectManager: objectManager, // <<< Pass objectManager instance here
-                bounds: { top: -20 }
-            }));
-        }
-
-        // Setup collision handlers
-        const collisionComp = obj.getComponent(CollisionComponent);
-        if (collisionComp) {
-            // Add explicit type IGameObject to otherObject
-            collisionComp.onCollision = (otherObject: IGameObject) => {
-                console.log(`Collision Handler: ${obj.name} hit ${otherObject.name}`);
-                // Bullet hits Enemy
-                if (collisionComp.group === 'bullet' && otherObject.getComponent(CollisionComponent)?.group === 'enemy') {
-                    objectManager.destroyObject(obj.id); // Destroy bullet
-                    objectManager.destroyObject(otherObject.id); // Destroy enemy
-                    soundManager.playSound('explosion'); // Play explosion sound
-                }
-                // Enemy hits Player
-                else if (collisionComp.group === 'enemy' && otherObject.getComponent(CollisionComponent)?.group === 'player') {
-                    objectManager.destroyObject(obj.id); // Destroy enemy
-                    soundManager.playSound('explosion');
-                    updateStatus('Player hit by enemy!'); // Log player hit
-                    // Could add player health logic here
-                }
-                 // Player hits Enemy (handled by the other object's collision)
-                 else if (collisionComp.group === 'player' && otherObject.getComponent(CollisionComponent)?.group === 'enemy') {
-                    objectManager.destroyObject(otherObject.id); // Destroy enemy
-                    soundManager.playSound('explosion');
-                    updateStatus('Player hit enemy!');
+    // Setup collision callbacks for initially created objects (player, enemies)
+     for (const obj of Array.from(objectManager.getAllObjects())) {
+         const collisionComp = obj.getComponent(CollisionComponent);
+         if (collisionComp) {
+             collisionComp.onCollision = (otherObject: IGameObject) => {
+                 // Ensure otherObject and its collision component are valid before checking group
+                 const otherCollisionComp = otherObject.getComponent(CollisionComponent);
+                 if (!otherCollisionComp?.group) {
+                     console.warn(`Collision detected with object ${otherObject.name}, but it lacks a valid CollisionComponent group.`);
+                     return; // Cannot determine collision type
                  }
-            };
-        }
-    }
+
+                 console.log(`Collision Handler: ${obj.name} (Group: ${collisionComp.group}) hit ${otherObject.name} (Group: ${otherCollisionComp.group})`);
+
+                 // Case 1: Enemy (obj) hits Bullet (otherObject)
+                 if (collisionComp.group === 'enemy' && otherCollisionComp.group === 'bullet') {
+                     console.log(` -> Enemy hit Bullet detected. Destroying both.`);
+                     objectManager.destroyObject(obj.id); // Destroy enemy
+                     objectManager.destroyObject(otherObject.id); // Destroy bullet
+                     soundManager.playSound('explosion');
+                 }
+                 // Case 2: Bullet (obj) hits Enemy (otherObject) - This won't run with current setup
+                 // else if (collisionComp.group === 'bullet' && otherCollisionComp.group === 'enemy') {
+                 //     console.log(` -> Bullet hit Enemy detected. Destroying both.`);
+                 //     objectManager.destroyObject(obj.id); // Destroy bullet
+                 //     objectManager.destroyObject(otherObject.id); // Destroy enemy
+                 //     soundManager.playSound('explosion');
+                 // }
+                 // Case 3: Enemy (obj) hits Player (otherObject)
+                 else if (collisionComp.group === 'enemy' && otherCollisionComp.group === 'player') {
+                     console.log(` -> Enemy hit Player detected. Destroying enemy.`);
+                     objectManager.destroyObject(obj.id); // Destroy enemy
+                     soundManager.playSound('explosion');
+                     updateStatus('Player hit by enemy!');
+                 }
+                  // Case 4: Player (obj) hits Enemy (otherObject)
+                  else if (collisionComp.group === 'player' && otherCollisionComp.group === 'enemy') {
+                     console.log(` -> Player hit Enemy detected. Destroying enemy.`);
+                     objectManager.destroyObject(otherObject.id); // Destroy enemy
+                     soundManager.playSound('explosion');
+                     updateStatus('Player hit enemy!');
+                  }
+             };
+         }
+     }
 
 
     // --- Start Game Loop ---
