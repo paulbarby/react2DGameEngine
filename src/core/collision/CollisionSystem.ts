@@ -2,12 +2,20 @@ import { ObjectManager } from '../objects/ObjectManager.js';
 import { IGameObject } from '../../types/core.js';
 import { CollisionComponent } from '../components/CollisionComponent.js';
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Needed for AABB check
+import { AssetLoader } from '../assets/AssetLoader.js'; // Import AssetLoader
 
 export class CollisionSystem {
     private objectManager: ObjectManager;
+    private assetLoader: AssetLoader; // Add AssetLoader
+    // Optional: Cache for offscreen canvases/contexts to improve performance
+    private offscreenCanvasA: HTMLCanvasElement | null = null;
+    private offscreenContextA: CanvasRenderingContext2D | null = null;
+    private offscreenCanvasB: HTMLCanvasElement | null = null;
+    private offscreenContextB: CanvasRenderingContext2D | null = null;
 
-    constructor(objectManager: ObjectManager) {
+    constructor(objectManager: ObjectManager, assetLoader: AssetLoader) { // Add assetLoader parameter
         this.objectManager = objectManager;
+        this.assetLoader = assetLoader; // Store assetLoader
     }
 
     update(): void {
@@ -78,7 +86,7 @@ export class CollisionSystem {
         }
     }
 
-    // AABB collision check
+    // AABB collision check - Modify to call pixel check on overlap
     private checkAABB(objA: IGameObject, objB: IGameObject): boolean {
         // Get dimensions - Prefer SpriteComponent, fallback to small default
         const spriteA = objA.getComponent(SpriteComponent);
@@ -118,11 +126,156 @@ export class CollisionSystem {
             bottomA <= topB ||
             topA >= bottomB;
 
-        // Log result for bullet/enemy checks
-        if ((compA?.group === 'bullet' && compB?.group === 'enemy') || (compA?.group === 'enemy' && compB?.group === 'bullet')) {
-            console.log(`  -> Overlap detected: ${!noOverlap}`);
+        // If AABB overlaps, perform pixel check
+        if (!noOverlap) {
+            // Log AABB overlap before pixel check
+            if ((compA?.group === 'bullet' && compB?.group === 'enemy') || (compA?.group === 'enemy' && compB?.group === 'bullet')) {
+                console.log(`  -> AABB Overlap detected. Proceeding to pixel check...`);
+            }
+            // Call pixel collision check
+            return this.checkPixelCollision(objA, objB, {leftA, rightA, topA, bottomA}, {leftB, rightB, topB, bottomB});
         }
 
-        return !noOverlap; // Return true if they overlap
+        // Log no overlap result for bullet/enemy checks
+        if ((compA?.group === 'bullet' && compB?.group === 'enemy') || (compA?.group === 'enemy' && compB?.group === 'bullet')) {
+            console.log(`  -> No AABB Overlap.`);
+        }
+
+        return false; // No AABB overlap
+    }
+
+    // --- NEW: Pixel-Perfect Collision Check ---
+    private checkPixelCollision(
+        objA: IGameObject,
+        objB: IGameObject,
+        boundsA: { leftA: number, rightA: number, topA: number, bottomA: number },
+        boundsB: { leftB: number, rightB: number, topB: number, bottomB: number }
+    ): boolean {
+        const spriteA = objA.getComponent(SpriteComponent);
+        const spriteB = objB.getComponent(SpriteComponent);
+        // Get components for logging
+        const compA = objA.getComponent(CollisionComponent);
+        const compB = objB.getComponent(CollisionComponent);
+
+        // 1. Check if components and necessary sprite data exist
+        if (!spriteA || !spriteB || !spriteA.imageKey || !spriteB.imageKey ||
+            spriteA.sourceWidth <= 0 || spriteA.sourceHeight <= 0 ||
+            spriteB.sourceWidth <= 0 || spriteB.sourceHeight <= 0) {
+            console.warn(`Pixel check skipped: Missing sprite component, imageKey, or valid source dimensions for ${objA.name} or ${objB.name}. Falling back to AABB result (true).`);
+            return true; // Fallback: Assume collision if AABB overlapped but pixel data is invalid
+        }
+
+        const imageA = this.assetLoader.getAsset<HTMLImageElement>(spriteA.imageKey);
+        const imageB = this.assetLoader.getAsset<HTMLImageElement>(spriteB.imageKey);
+
+        if (!imageA || !imageB) {
+            console.warn(`Pixel check skipped: Image asset not found for ${objA.name} (${spriteA.imageKey}) or ${objB.name} (${spriteB.imageKey}). Falling back to AABB result (true).`);
+            return true; // Fallback
+        }
+
+        // 2. Calculate Intersection Rectangle (World Space)
+        const intersectLeft = Math.max(boundsA.leftA, boundsB.leftB);
+        const intersectRight = Math.min(boundsA.rightA, boundsB.rightB);
+        const intersectTop = Math.max(boundsA.topA, boundsB.topB);
+        const intersectBottom = Math.min(boundsA.bottomA, boundsB.bottomB);
+
+        // If intersection area is zero or negative, no collision (shouldn't happen if AABB passed, but check anyway)
+        if (intersectLeft >= intersectRight || intersectTop >= intersectBottom) {
+            return false;
+        }
+
+        // 3. Prepare Offscreen Canvases and Contexts
+        // Reuse or create canvases matching the source sprite dimensions
+        this.offscreenCanvasA = this.prepareOffscreenCanvas(this.offscreenCanvasA, spriteA.sourceWidth, spriteA.sourceHeight);
+        this.offscreenContextA = this.offscreenCanvasA.getContext('2d', { willReadFrequently: true }); // Hint for performance
+
+        this.offscreenCanvasB = this.prepareOffscreenCanvas(this.offscreenCanvasB, spriteB.sourceWidth, spriteB.sourceHeight);
+        this.offscreenContextB = this.offscreenCanvasB.getContext('2d', { willReadFrequently: true });
+
+        if (!this.offscreenContextA || !this.offscreenContextB) {
+             console.error("Failed to get offscreen 2D context for pixel collision.");
+             return true; // Fallback
+        }
+
+        // 4. Draw Sprite Frames to Offscreen Canvases
+        this.offscreenContextA.clearRect(0, 0, spriteA.sourceWidth, spriteA.sourceHeight);
+        this.offscreenContextA.drawImage(imageA,
+            spriteA.sourceX, spriteA.sourceY, spriteA.sourceWidth, spriteA.sourceHeight,
+            0, 0, spriteA.sourceWidth, spriteA.sourceHeight);
+
+        this.offscreenContextB.clearRect(0, 0, spriteB.sourceWidth, spriteB.sourceHeight);
+        this.offscreenContextB.drawImage(imageB,
+            spriteB.sourceX, spriteB.sourceY, spriteB.sourceWidth, spriteB.sourceHeight,
+            0, 0, spriteB.sourceWidth, spriteB.sourceHeight);
+
+        // 5. Get Image Data
+        let imageDataA: ImageData | null = null;
+        let imageDataB: ImageData | null = null;
+        try {
+            imageDataA = this.offscreenContextA.getImageData(0, 0, spriteA.sourceWidth, spriteA.sourceHeight);
+            imageDataB = this.offscreenContextB.getImageData(0, 0, spriteB.sourceWidth, spriteB.sourceHeight);
+        } catch (e) {
+            console.error("Security error getting ImageData (tainted canvas?):", e);
+            return true; // Fallback if reading data fails
+        }
+
+        if (!imageDataA || !imageDataB) return true; // Fallback
+
+        const dataA = imageDataA.data;
+        const dataB = imageDataB.data;
+        const alphaThreshold = 10; // Consider pixels with alpha > 10 as opaque
+
+        // 6. Iterate Through Intersection Area
+        // Loop through world coordinates in the intersection rectangle
+        for (let wx = Math.floor(intersectLeft); wx < Math.ceil(intersectRight); wx++) {
+            for (let wy = Math.floor(intersectTop); wy < Math.ceil(intersectBottom); wy++) {
+                // Convert world (wx, wy) to local pixel coordinates for each sprite
+                // Assumes object x/y is center anchor
+                const pxA = Math.floor(wx - boundsA.leftA);
+                const pyA = Math.floor(wy - boundsA.topA);
+
+                const pxB = Math.floor(wx - boundsB.leftB);
+                const pyB = Math.floor(wy - boundsB.topB);
+
+                // Check if local coordinates are within the sprite's drawn area (0 to width/height-1)
+                if (pxA >= 0 && pxA < spriteA.width && pyA >= 0 && pyA < spriteA.height &&
+                    pxB >= 0 && pxB < spriteB.width && pyB >= 0 && pyB < spriteB.height)
+                {
+                    // Calculate index in the ImageData array (4 bytes per pixel: R, G, B, A)
+                    // Note: We use the sourceWidth for stride, as that's the ImageData dimension
+                    const indexA = (pyA * spriteA.sourceWidth + pxA) * 4;
+                    const indexB = (pyB * spriteB.sourceWidth + pxB) * 4;
+
+                    // Get alpha values (index + 3)
+                    const alphaA = dataA[indexA + 3];
+                    const alphaB = dataB[indexB + 3];
+
+                    // Check for collision (both pixels are sufficiently opaque)
+                    if (alphaA > alphaThreshold && alphaB > alphaThreshold) {
+                         // Log pixel collision detection for bullet/enemy
+                         if ((compA?.group === 'bullet' && compB?.group === 'enemy') || (compA?.group === 'enemy' && compB?.group === 'bullet')) {
+                             console.log(`  -> Pixel Collision DETECTED at world (${wx}, ${wy}) / localA (${pxA}, ${pyA}) / localB (${pxB}, ${pyB})`);
+                         }
+                        return true; // Collision detected!
+                    }
+                }
+            }
+        }
+
+        // If loop completes without finding overlapping opaque pixels
+        if ((compA?.group === 'bullet' && compB?.group === 'enemy') || (compA?.group === 'enemy' && compB?.group === 'bullet')) {
+            console.log(`  -> No pixel collision found within AABB intersection.`);
+        }
+        return false;
+    }
+
+    // Helper to create or resize offscreen canvas
+    private prepareOffscreenCanvas(canvas: HTMLCanvasElement | null, width: number, height: number): HTMLCanvasElement {
+        if (!canvas) {
+            canvas = document.createElement('canvas');
+        }
+        if (canvas.width !== width) canvas.width = width;
+        if (canvas.height !== height) canvas.height = height;
+        return canvas;
     }
 }

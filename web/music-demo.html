@@ -14,16 +14,21 @@
     <h1>Music Demo</h1>
     <p>Uses SoundManager to play streaming music.</p>
     <div class="controls">
-        <button id="play-button">Play Theme</button>
+        <label for="music-select">Select Music:</label>
+        <select id="music-select" name="music-select">
+            <option value="">--Select--</option>
+        </select>
+        <br>
+        <button id="play-button">Play Selected</button>
         <button id="pause-button">Pause</button>
         <button id="resume-button">Resume</button>
         <button id="stop-button">Stop</button>
         <br>
-        <label for="volume-slider">Volume:</label>
-        <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1.0">
-        <span id="volume-value">1.00</span>
+        <label for="volume-slider">Music Volume:</label>
+        <input type="range" id="volume-slider" min="0" max="100" step="1" value="100">
+        <span id="volume-value">100</span>
     </div>
-    <div id="status">Status: Idle. Click Play Theme (requires user interaction first).</div>
+    <div id="status">Status: Idle. Click Play Selected (requires user interaction first).</div>
 
     <script type="module" src="/dist/music-demo.js"></script>
 </body>

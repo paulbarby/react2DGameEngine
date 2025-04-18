@@ -63,20 +63,28 @@ async function main() {
     });
 
     // Enemies
-    const numEnemies = 5;
+    const numEnemies = 8; // Increased enemy count slightly
+    const enemySpriteRefs = ['enemySheet/idle', 'enemy2Sheet/idle']; // Array of possible sprite refs
+
     for (let i = 0; i < numEnemies; i++) {
+        const randomSpriteRef = enemySpriteRefs[Math.floor(Math.random() * enemySpriteRefs.length)]; // Pick one randomly
+        const enemyType = randomSpriteRef.startsWith('enemy2') ? 'enemy2' : 'enemy1'; // Determine type for potential logic differences
+
         gameObjects.push({
-            id: `enemy_${i}`, name: `Enemy ${i}`, type: 'enemy',
-            x: Math.random() * canvas.width, y: Math.random() * canvas.height / 2, // Start scattered
+            id: `enemy_${i}`,
+            name: `Enemy ${i} (${enemyType})`, // Add type to name for clarity
+            type: 'enemy', // Keep generic type or use enemyType if needed
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height / 2, // Start scattered
             layerId: 'main',
             components: [
-                // Use direct image key for enemy sprite
                 { type: 'SpriteComponent', properties: {
-                    spriteRef: 'enemySheet/idle',
-                    anchor: { x: 0.5, y: 0.5 } // Also center enemies
-                } }, // Assuming enemyShip is a direct image key
+                    spriteRef: randomSpriteRef, // Use the randomly selected sprite reference
+                    anchor: { x: 0.5, y: 0.5 }
+                } },
                 { type: 'EnemyMovementComponent', properties: {
-                    speed: 50 + Math.random() * 50, // Random speeds
+                    // Optionally adjust speed based on type
+                    speed: (enemyType === 'enemy2' ? 40 : 50) + Math.random() * 50,
                     bounds: { width: canvas.width, height: canvas.height }
                 }}
             ]
