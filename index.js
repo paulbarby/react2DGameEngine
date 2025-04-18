@@ -62,6 +62,11 @@ app.get('/advanced-animation-demo', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'advanced-animation-demo.html')); // Added route
 });
 
+// Route for the rotation demo page
+app.get('/rotation-demo', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'rotation-demo.html')); // Added route
+});
+
 // Updated root route to serve the main index.html from 'web'
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'index.html')); // Added 'web'
@@ -80,5 +85,6 @@ app.listen(port, () => {
     console.log('Navigate to http://localhost:3000/music-demo');
     console.log('Navigate to http://localhost:3000/collision-demo');
     console.log('Navigate to http://localhost:3000/advanced-animation-demo'); // Added log
+    console.log('Navigate to http://localhost:3000/rotation-demo'); // Added log
     console.log('Serving config from ./public/config directory.');
 });
