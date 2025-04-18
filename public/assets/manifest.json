@@ -3,7 +3,8 @@
     "playerShip": "/assets/images/player.png",
     "enemyShip": "/assets/images/enemy.png",
     "enemy2Ship": "/assets/images/enemy2.png",
-    "bullet1": "/assets/images/bullet1.png"
+    "bullet1": "/assets/images/bullet1.png",
+    "explosion1": "/assets/images/explosion1.png"
   },
   "sounds": {
     "laserShoot": "/assets/sounds/shoot.wav",
@@ -13,7 +14,9 @@
     "playerSheet": "/assets/defs/player_def.json",
     "enemySheet": "/assets/defs/enemy_def.json",
     "enemy2Sheet": "/assets/defs/enemy2_def.json",
-    "bulletSheet": "/assets/defs/bullet1_def.json"
+    "bulletSheet": "/assets/defs/bullet1_def.json",
+    "explosionSheet": "/assets/defs/explosion1_def.json"
+
     
   },
   "music": {
