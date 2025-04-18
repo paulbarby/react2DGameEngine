@@ -6,9 +6,10 @@ export class GameObject implements IGameObject {
     public name: string;
     public x: number;
     public y: number;
-    public rotation: number; // in radians
-    public scaleX: number;
-    public scaleY: number;
+    public rotation: number = 0; // Default rotation
+    public scaleX: number = 1;   // Default scale
+    public scaleY: number = 1;   // Default scale
+    public layerId: string;      // Added layerId property
     public components: IComponent[] = []; // Use array for order if needed
 
     constructor(config: GameObjectConfig) {
@@ -16,9 +17,7 @@ export class GameObject implements IGameObject {
         this.name = config.name;
         this.x = config.x;
         this.y = config.y;
-        this.rotation = 0; // Default rotation
-        this.scaleX = 1;   // Default scale
-        this.scaleY = 1;   // Default scale
+        this.layerId = config.layerId; // Initialize layerId from config
         // Components are added by ObjectManager after construction
     }
 

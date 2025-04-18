@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layer System Demo</title>
+    <style>
+        body { font-family: sans-serif; padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; }
+        #game-canvas { border: 1px solid #ccc; background-color: #fff; margin-top: 10px; }
+        p { margin: 5px 0 10px 0; }
+        #status { margin-top: 10px; font-style: italic; color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Layer System Demo</h1>
+    <p>Objects are rendered according to their layer's depth value (lower depth = further back).</p>
+    <canvas id="game-canvas" width="600" height="400" tabindex="0">Your browser does not support the canvas element.</canvas>
+    <div id="status">Loading...</div>
+
+    <script type="module" src="/dist/layer-demo.js"></script>
+</body>
+</html>

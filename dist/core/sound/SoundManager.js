@@ -2,9 +2,12 @@ export class SoundManager {
     // Optional: Keep track of active sounds
     // private activeSources: Map<string, AudioBufferSourceNode[]> = new Map();
     constructor(audioContext, assetLoader) {
+        this.currentMusic = null;
+        this.musicVolume = 1.0; // Default music volume (0.0 to 1.0)
         this.audioContext = audioContext;
         this.assetLoader = assetLoader;
     }
+    // --- Sound Effects ---
     playSound(key, loop = false) {
         const asset = this.assetLoader.getAsset(key);
         if (!asset) {
@@ -62,6 +65,81 @@ export class SoundManager {
             }
         }
     }
+    // --- Music ---
+    playMusic(key, loop = true) {
+        // Stop any currently playing music first
+        this.stopMusic();
+        // Get the URL from the AssetLoader
+        const musicUrl = this.assetLoader.getAsset(key);
+        if (!musicUrl || typeof musicUrl !== 'string') {
+            console.warn(`Music asset URL for key "${key}" not found or invalid.`);
+            return;
+        }
+        try {
+            this.currentMusic = new Audio(musicUrl);
+            this.currentMusic.loop = loop;
+            this.currentMusic.volume = this.musicVolume; // Apply current volume setting
+            this.currentMusic.play()
+                .then(() => console.log(`Playing music: ${key}`))
+                .catch(error => {
+                console.error(`Error playing music "${key}":`, error);
+                // Attempt to resume context if suspended (common issue)
+                if (this.audioContext.state === 'suspended') {
+                    console.log('AudioContext suspended, attempting resume...');
+                    this.resumeContext();
+                    // Optionally try playing again after resume, or instruct user interaction
+                }
+                this.currentMusic = null; // Clear if playback failed
+            });
+            // Handle cleanup if music ends naturally (and wasn't looped)
+            this.currentMusic.onended = () => {
+                var _a;
+                if (!((_a = this.currentMusic) === null || _a === void 0 ? void 0 : _a.loop)) {
+                    console.log(`Music "${key}" finished.`);
+                    this.currentMusic = null;
+                }
+            };
+        }
+        catch (error) {
+            console.error(`Error creating Audio element for music "${key}":`, error);
+            this.currentMusic = null;
+        }
+    }
+    stopMusic() {
+        if (this.currentMusic) {
+            this.currentMusic.pause();
+            this.currentMusic.currentTime = 0; // Reset playback position
+            this.currentMusic.onended = null; // Remove listener
+            console.log(`Stopped music.`);
+            this.currentMusic = null;
+        }
+    }
+    pauseMusic() {
+        if (this.currentMusic && !this.currentMusic.paused) {
+            this.currentMusic.pause();
+            console.log(`Paused music.`);
+        }
+    }
+    resumeMusic() {
+        if (this.currentMusic && this.currentMusic.paused) {
+            this.currentMusic.play().catch(error => {
+                console.error(`Error resuming music:`, error);
+            });
+            console.log(`Resumed music.`);
+        }
+    }
+    setMusicVolume(volume) {
+        // Clamp volume between 0.0 and 1.0
+        this.musicVolume = Math.max(0.0, Math.min(1.0, volume));
+        if (this.currentMusic) {
+            this.currentMusic.volume = this.musicVolume;
+        }
+        console.log(`Music volume set to: ${this.musicVolume.toFixed(2)}`);
+    }
+    getMusicVolume() {
+        return this.musicVolume;
+    }
+    // --- General ---
     // Optional: Stop all sounds with a specific key
     // stopAllSounds(key: string): void {
     //     const sources = this.activeSources.get(key);

@@ -37,6 +37,21 @@ app.get('/advanced-sprite-demo', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'advanced-sprite-demo.html')); // Added 'web'
 });
 
+// Route for the scene manager demo page
+app.get('/scene-manager-demo', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'scene-manager-demo.html')); // Added 'web'
+});
+
+// Route for the layer system demo page
+app.get('/layer-demo', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'layer-demo.html')); // Added 'web'
+});
+
+// Route for the music demo page
+app.get('/music-demo', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'music-demo.html')); // Added 'web'
+});
+
 // Updated root route to serve the main index.html from 'web'
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'index.html')); // Added 'web'
@@ -50,4 +65,7 @@ app.listen(port, () => {
     console.log('Navigate to http://localhost:3000/'); // Root serves index now
     console.log('Navigate to http://localhost:3000/main-menu-demo');
     console.log('Navigate to http://localhost:3000/advanced-sprite-demo');
+    console.log('Navigate to http://localhost:3000/scene-manager-demo');
+    console.log('Navigate to http://localhost:3000/layer-demo');
+    console.log('Navigate to http://localhost:3000/music-demo');
 });

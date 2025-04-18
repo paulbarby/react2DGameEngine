@@ -10,5 +10,8 @@
   "spriteSheets": {
     "playerSheet": "/assets/defs/player_def.json",
     "enemySheet": "/assets/defs/enemy_def.json"
+  },
+  "music": {
+    "backgroundTheme": "/assets/music/Galactic Blitz.mp3"
   }
 }
