@@ -4,6 +4,7 @@ import { ObjectManager } from './core/objects/ObjectManager.js';
 import { Renderer } from './core/rendering/Renderer.js';
 import { SceneManager } from './core/scene/SceneManager.js';
 import { SoundManager } from './core/sound/SoundManager.js';
+import { SettingsManager } from './core/settings/SettingsManager.js'; // Import SettingsManager
 import { GameLoop } from './core/engine/GameLoop.js';
 import { Project, Scene } from './types/project.js';
 import { IGameObject } from './types/core.js';
@@ -47,12 +48,25 @@ async function main() {
         return;
     }
 
+    const settingsManager = new SettingsManager(); // Instantiate
+    console.log("sprite-demo: Calling settingsManager.loadSettings()...");
+    const loadedSettings = await settingsManager.loadSettings(); // Wait and get settings
+    console.log("sprite-demo: settingsManager.loadSettings() finished.");
+
+     if (!loadedSettings) {
+        updateStatus("Warning: Failed to load settings. SoundManager might use defaults.");
+        // Decide if the demo should proceed without sound or stop
+    }
+    console.log("sprite-demo: Settings loaded, proceeding to create SoundManager.");
+    console.log(`sprite-demo: Master volume from manager: ${settingsManager.getMasterVolume()}`);
+
+
     const assetLoader = new AssetLoader(audioContext);
     const inputManager = new InputManager(canvas); // Target input to canvas
     const objectManager = new ObjectManager(); // Will auto-register SpriteComponent
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas);
-    const soundManager = new SoundManager(audioContext, assetLoader); // SoundManager needed but not used in this demo
+    const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Pass settingsManager to SoundManager
 
     // --- Define a Simple Project/Scene ---
     // Usually loaded from JSON, but defined inline for this demo

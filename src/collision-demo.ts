@@ -14,6 +14,7 @@ import { PlayerShootingComponent } from './core/components/PlayerShootingCompone
 import { BulletMovementComponent } from './core/components/BulletMovementComponent.js';
 import { AnimationComponent } from './core/components/AnimationComponent.js'; // Import AnimationComponent
 import { IGameObject } from './types/core.js'; // Import IGameObject
+import { SettingsManager } from './core/settings/SettingsManager.js'; // Import SettingsManager
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -62,14 +63,26 @@ async function main() {
     try { /* ... audio context setup and resume ... */ audioContext = new (window.AudioContext || (window as any).webkitAudioContext)(); const resumeContext = () => { if (audioContext.state === 'suspended') audioContext.resume().catch(e => console.error(e)); document.removeEventListener('click', resumeContext); document.removeEventListener('keydown', resumeContext); }; document.addEventListener('click', resumeContext); document.addEventListener('keydown', resumeContext); }
     catch (e) { updateStatus('Error: Web Audio API not supported.'); return; }
 
+    const settingsManager = new SettingsManager(); // Instantiate
+    console.log("collision-demo: Calling settingsManager.loadSettings()...");
+    const loadedSettings = await settingsManager.loadSettings(); // Wait and get settings
+    console.log("collision-demo: settingsManager.loadSettings() finished.");
+
+    if (!loadedSettings) {
+        updateStatus("Error: Failed to load settings. Cannot initialize SoundManager.");
+        // Decide if the demo should proceed without sound or stop
+    }
+    console.log("collision-demo: Settings loaded, proceeding to create SoundManager.");
+    console.log(`collision-demo: Master volume from manager: ${settingsManager.getMasterVolume()}`);
+
     const assetLoader = new AssetLoader(audioContext);
     const inputManager = new InputManager(canvas);
     const objectManager = new ObjectManager();
     objectManager.setAssetLoader(assetLoader); // <<<<---- Set AssetLoader in ObjectManager
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas);
-    const soundManager = new SoundManager(audioContext, assetLoader); // Instantiate SoundManager
-    const collisionSystem = new CollisionSystem(objectManager); // Instantiate CollisionSystem
+    const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Pass settingsManager to SoundManager
+    const collisionSystem = new CollisionSystem(objectManager, assetLoader); // Instantiate CollisionSystem
 
     // --- Register Components ---
     objectManager.registerComponent('PlayerControllerComponent', PlayerControllerComponent);

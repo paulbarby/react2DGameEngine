@@ -1,0 +1,10 @@
+{
+  "volume": {
+    "master": 0.5,
+    "music": 0.1,
+    "sfx": 0.2
+  },
+  "controls": {
+    "invertY": false
+  }
+}

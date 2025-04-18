@@ -3,7 +3,7 @@ const path = require('path'); // Import the path module
 const app = express();
 const port = 3000;
 
-// Serve static files from the 'public' directory (for assets)
+// Serve static files from the 'public' directory (for assets AND config)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve static files from the 'web' directory (for HTML files)
@@ -74,4 +74,5 @@ app.listen(port, () => {
     console.log('Navigate to http://localhost:3000/layer-demo');
     console.log('Navigate to http://localhost:3000/music-demo');
     console.log('Navigate to http://localhost:3000/collision-demo');
+    console.log('Serving config from ./public/config directory.');
 });
