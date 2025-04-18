@@ -15,6 +15,8 @@ import { BulletMovementComponent } from './core/components/BulletMovementCompone
 import { AnimationComponent } from './core/components/AnimationComponent.js'; // Import AnimationComponent
 import { IGameObject } from './types/core.js'; // Import IGameObject
 import { SettingsManager } from './core/settings/SettingsManager.js'; // Import SettingsManager
+import { EventBus } from './core/events/EventBus.js'; // Import EventBus
+import { AppEvent, CollisionEvent, GameObjectEvent } from './core/events/EventTypes.js'; // Import event types
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -63,7 +65,10 @@ async function main() {
     try { /* ... audio context setup and resume ... */ audioContext = new (window.AudioContext || (window as any).webkitAudioContext)(); const resumeContext = () => { if (audioContext.state === 'suspended') audioContext.resume().catch(e => console.error(e)); document.removeEventListener('click', resumeContext); document.removeEventListener('keydown', resumeContext); }; document.addEventListener('click', resumeContext); document.addEventListener('keydown', resumeContext); }
     catch (e) { updateStatus('Error: Web Audio API not supported.'); return; }
 
+    const eventBus = new EventBus(); // Instantiate EventBus
+
     const settingsManager = new SettingsManager(); // Instantiate
+    settingsManager.setEventBus(eventBus); // Inject EventBus
     console.log("collision-demo: Calling settingsManager.loadSettings()...");
     const loadedSettings = await settingsManager.loadSettings(); // Wait and get settings
     console.log("collision-demo: settingsManager.loadSettings() finished.");
@@ -76,13 +81,14 @@ async function main() {
     console.log(`collision-demo: Master volume from manager: ${settingsManager.getMasterVolume()}`);
 
     const assetLoader = new AssetLoader(audioContext);
-    const inputManager = new InputManager(canvas);
+    const inputManager = new InputManager(canvas, eventBus); // Inject EventBus
     const objectManager = new ObjectManager();
     objectManager.setAssetLoader(assetLoader); // <<<<---- Set AssetLoader in ObjectManager
+    objectManager.setEventBus(eventBus); // Inject EventBus
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas);
     const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Pass settingsManager to SoundManager
-    const collisionSystem = new CollisionSystem(objectManager, assetLoader); // Instantiate CollisionSystem
+    const collisionSystem = new CollisionSystem(objectManager, assetLoader, eventBus); // Inject EventBus
 
     // --- Register Components ---
     objectManager.registerComponent('PlayerControllerComponent', PlayerControllerComponent);
@@ -146,58 +152,78 @@ async function main() {
     try { /* ... asset loading ... */ updateStatus('Loading assets...'); const manifest = await assetLoader.loadManifest('/assets/manifest.json'); await assetLoader.loadAllAssets(manifest); updateStatus('Assets loaded.'); }
     catch (error: any) { updateStatus(`Error loading assets: ${error.message}`); return; }
 
-    // --- Setup Scene & Collision Callbacks ---
+    // --- Setup Scene ---
     sceneManager.loadProject(demoProject);
     if (!sceneManager.loadScene(demoProject.startScene)) { updateStatus('Error loading scene.'); return; }
     const currentScene = sceneManager.getCurrentScene();
     if (!currentScene) { updateStatus('Error getting current scene.'); return; }
-    objectManager.createObjectsForScene(currentScene);
+    objectManager.createObjectsForScene(currentScene); // This will now publish gameObjectCreated events
 
-    // Setup collision callbacks for initially created objects (player, enemies)
-     for (const obj of Array.from(objectManager.getAllObjects())) {
-         const collisionComp = obj.getComponent(CollisionComponent);
-         if (collisionComp) {
-             collisionComp.onCollision = (otherObject: IGameObject) => {
-                 // Ensure otherObject and its collision component are valid before checking group
-                 const otherCollisionComp = otherObject.getComponent(CollisionComponent);
-                 if (!otherCollisionComp?.group) {
-                     console.warn(`Collision detected with object ${otherObject.name}, but it lacks a valid CollisionComponent group.`);
-                     return; // Cannot determine collision type
-                 }
+    // --- Setup Event Listeners (Replaces Collision Callbacks) ---
+    eventBus.subscribe('collisionDetected', (event) => {
+        const collisionEvent = event as CollisionEvent; // Type assertion
+        const objA = collisionEvent.objectA;
+        const objB = collisionEvent.objectB;
 
-                 console.log(`Collision Handler: ${obj.name} (Group: ${collisionComp.group}) hit ${otherObject.name} (Group: ${otherCollisionComp.group})`);
+        // Ensure objects still exist before processing collision
+        if (!objectManager.getObjectById(objA.id) || !objectManager.getObjectById(objB.id)) {
+            console.log(`Collision event ignored: One or both objects destroyed (${objA.name}, ${objB.name})`);
+            return;
+        }
 
-                 // Case 1: Enemy (obj) hits Bullet (otherObject)
-                 if (collisionComp.group === 'enemy' && otherCollisionComp.group === 'bullet') {
-                     console.log(` -> Enemy hit Bullet detected. Destroying both.`);
-                     objectManager.destroyObject(obj.id); // Destroy enemy
-                     objectManager.destroyObject(otherObject.id); // Destroy bullet
-                     soundManager.playSound('explosion');
-                 }
-                 // Case 2: Bullet (obj) hits Enemy (otherObject) - This won't run with current setup
-                 // else if (collisionComp.group === 'bullet' && otherCollisionComp.group === 'enemy') {
-                 //     console.log(` -> Bullet hit Enemy detected. Destroying both.`);
-                 //     objectManager.destroyObject(obj.id); // Destroy bullet
-                 //     objectManager.destroyObject(otherObject.id); // Destroy enemy
-                 //     soundManager.playSound('explosion');
-                 // }
-                 // Case 3: Enemy (obj) hits Player (otherObject)
-                 else if (collisionComp.group === 'enemy' && otherCollisionComp.group === 'player') {
-                     console.log(` -> Enemy hit Player detected. Destroying enemy.`);
-                     objectManager.destroyObject(obj.id); // Destroy enemy
-                     soundManager.playSound('explosion');
-                     updateStatus('Player hit by enemy!');
-                 }
-                  // Case 4: Player (obj) hits Enemy (otherObject)
-                  else if (collisionComp.group === 'player' && otherCollisionComp.group === 'enemy') {
-                     console.log(` -> Player hit Enemy detected. Destroying enemy.`);
-                     objectManager.destroyObject(otherObject.id); // Destroy enemy
-                     soundManager.playSound('explosion');
-                     updateStatus('Player hit enemy!');
-                  }
-             };
-         }
-     }
+        const compA = objA.getComponent(CollisionComponent);
+        const compB = objB.getComponent(CollisionComponent);
+
+        // Should not happen if CollisionSystem filters correctly, but good practice
+        if (!compA || !compB) {
+            console.warn(`Collision event ignored: Missing CollisionComponent on ${compA ? objB.name : objA.name}`);
+            return;
+        }
+
+        console.log(`EventBus Handler: Collision detected between ${objA.name} (Group: ${compA.group}) and ${objB.name} (Group: ${compB.group})`);
+
+        // Case 1: Enemy hits Bullet (or vice versa)
+        if ((compA.group === 'enemy' && compB.group === 'bullet') || (compA.group === 'bullet' && compB.group === 'enemy')) {
+            console.log(` -> Enemy/Bullet collision. Destroying both.`);
+            // Destroy both, checking existence before each destruction
+            if (objectManager.getObjectById(objA.id)) objectManager.destroyObject(objA.id);
+            if (objectManager.getObjectById(objB.id)) objectManager.destroyObject(objB.id);
+            // Sound is handled by the 'gameObjectDestroyed' listener below
+        }
+        // Case 2: Enemy hits Player (or vice versa)
+        else if ((compA.group === 'enemy' && compB.group === 'player') || (compA.group === 'player' && compB.group === 'enemy')) {
+            const enemyObj = compA.group === 'enemy' ? objA : objB;
+            console.log(` -> Player/Enemy collision. Destroying enemy: ${enemyObj.name}`);
+            if (objectManager.getObjectById(enemyObj.id)) objectManager.destroyObject(enemyObj.id);
+            updateStatus('Player hit by enemy!');
+            // Sound is handled by the 'gameObjectDestroyed' listener below
+        }
+    });
+
+    // Listener for object destruction (e.g., play explosion sound)
+    eventBus.subscribe('gameObjectDestroyed', (event) => {
+        const destroyedEvent = event as GameObjectEvent;
+        const obj = destroyedEvent.gameObject;
+        const collisionComp = obj.getComponent(CollisionComponent); // Check if it's something that should explode
+
+        // Play explosion sound if an enemy or bullet was destroyed
+        if (collisionComp && (collisionComp.group === 'enemy' || collisionComp.group === 'bullet')) {
+            console.log(`EventBus Handler: Playing explosion sound for destroyed ${obj.name} (Group: ${collisionComp.group})`);
+            soundManager.playSound('explosion');
+        }
+    });
+
+    // --- REMOVE OLD COLLISION CALLBACK SETUP ---
+    // // Setup collision callbacks for initially created objects (player, enemies)
+    //  for (const obj of Array.from(objectManager.getAllObjects())) {
+    //      const collisionComp = obj.getComponent(CollisionComponent);
+    //      if (collisionComp) {
+    //          collisionComp.onCollision = (otherObject: IGameObject) => {
+    //              // ... old callback logic ...
+    //          };
+    //      }
+    //  }
+    // --- END REMOVE OLD COLLISION CALLBACK SETUP ---
 
 
     // --- Start Game Loop ---
@@ -221,7 +247,11 @@ async function main() {
     updateStatus('Game running. Use Arrows/WASD to move, Space to shoot.');
 
     // Optional: Cleanup
-    window.addEventListener('beforeunload', () => { gameLoop.stop(); inputManager.destroy(); });
+    window.addEventListener('beforeunload', () => {
+        gameLoop.stop();
+        inputManager.destroy();
+        eventBus.clearListeners(); // Clear listeners on unload
+    });
 }
 
 main().catch(err => { updateStatus(`Unhandled error: ${err.message}`); console.error(err); });

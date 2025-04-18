@@ -3,19 +3,23 @@ import { IGameObject } from '../../types/core.js';
 import { CollisionComponent } from '../components/CollisionComponent.js';
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Needed for AABB check
 import { AssetLoader } from '../assets/AssetLoader.js'; // Import AssetLoader
+import { EventBus } from '../events/EventBus.js'; // Import EventBus
+import { createCollisionEvent } from '../events/EventTypes.js'; // Import event creator
 
 export class CollisionSystem {
     private objectManager: ObjectManager;
     private assetLoader: AssetLoader; // Add AssetLoader
+    private eventBus: EventBus; // Add EventBus
     // Optional: Cache for offscreen canvases/contexts to improve performance
     private offscreenCanvasA: HTMLCanvasElement | null = null;
     private offscreenContextA: CanvasRenderingContext2D | null = null;
     private offscreenCanvasB: HTMLCanvasElement | null = null;
     private offscreenContextB: CanvasRenderingContext2D | null = null;
 
-    constructor(objectManager: ObjectManager, assetLoader: AssetLoader) { // Add assetLoader parameter
+    constructor(objectManager: ObjectManager, assetLoader: AssetLoader, eventBus: EventBus) { // Add eventBus parameter
         this.objectManager = objectManager;
         this.assetLoader = assetLoader; // Store assetLoader
+        this.eventBus = eventBus; // Store eventBus
     }
 
     update(): void {
@@ -67,19 +71,14 @@ export class CollisionSystem {
                     }
 
                     if (this.checkAABB(objA, objB)) {
-                        // Trigger collision callbacks, checking validity before each call
-
-                        // Call A's callback if it exists and B is still valid
-                        if (compA.onCollision && this.objectManager.getObjectById(objB.id)) {
-                             compA.onCollision(objB);
+                        // --- Publish Collision Event ---
+                        // Check if objects still exist right before publishing
+                        if (this.objectManager.getObjectById(objA.id) && this.objectManager.getObjectById(objB.id)) {
+                            this.eventBus.publish(createCollisionEvent(objA, objB));
+                            // Note: The event listener is now responsible for handling the collision logic
+                            // (e.g., destroying objects, playing sounds).
                         }
-
-                        // Call B's callback if it exists and A is still valid (might have been destroyed by A's callback)
-                        if (compB.onCollision && this.objectManager.getObjectById(objA.id)) {
-                             compB.onCollision(objA);
-                        }
-                        // Note: The checks at the start of the loops handle cases where
-                        // objects are destroyed and affect subsequent iterations.
+                        // --- End Publish Collision Event ---
                     }
                 }
             }

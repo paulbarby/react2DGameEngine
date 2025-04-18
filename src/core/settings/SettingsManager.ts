@@ -1,3 +1,6 @@
+import { EventBus } from '../events/EventBus.js'; // Import EventBus
+import { createSettingsChangeEvent } from '../events/EventTypes.js'; // Import event creator
+
 interface GameSettings {
     volume: {
         master: number;
@@ -14,6 +17,7 @@ export class SettingsManager {
     private settings: GameSettings | null = null;
     private settingsUrl: string;
     private listeners: Map<keyof GameSettings['volume'], Set<(value: number) => void>> = new Map();
+    private eventBus: EventBus | null = null; // Add EventBus instance
 
     constructor(settingsUrl: string = '/config/settings.json') {
         this.settingsUrl = settingsUrl;
@@ -21,6 +25,11 @@ export class SettingsManager {
         this.listeners.set('master', new Set());
         this.listeners.set('music', new Set());
         this.listeners.set('sfx', new Set());
+    }
+
+    // Method to set the EventBus
+    setEventBus(eventBus: EventBus): void {
+        this.eventBus = eventBus;
     }
 
     // Make loadSettings return the settings object or null
@@ -113,10 +122,15 @@ export class SettingsManager {
     setMasterVolume(value: number): void {
         if (this.settings && typeof value === 'number' && value >= 0 && value <= 1) {
             const clampedValue = Math.max(0, Math.min(1, value));
-            if (this.settings.volume.master !== clampedValue) {
+            const previousValue = this.settings.volume.master; // Store previous value
+            if (previousValue !== clampedValue) {
                 this.settings.volume.master = clampedValue;
                 console.log(`SettingsManager: Master Volume set to ${clampedValue}`);
                 this.notifyVolumeListeners('master', clampedValue);
+                // Publish event
+                if (this.eventBus) {
+                    this.eventBus.publish(createSettingsChangeEvent('volume.master', clampedValue, previousValue));
+                }
                 // TODO: Persist settings (e.g., localStorage)
             }
         } else {
@@ -127,10 +141,15 @@ export class SettingsManager {
     setMusicVolumeMultiplier(value: number): void {
         if (this.settings && typeof value === 'number' && value >= 0) { // Allow > 1? Usually 0-1.
             const clampedValue = Math.max(0, Math.min(1, value)); // Clamp between 0 and 1
-            if (this.settings.volume.music !== clampedValue) {
+            const previousValue = this.settings.volume.music; // Store previous value
+            if (previousValue !== clampedValue) {
                 this.settings.volume.music = clampedValue;
                 console.log(`SettingsManager: Music Volume Multiplier set to ${clampedValue}`);
                 this.notifyVolumeListeners('music', clampedValue);
+                // Publish event
+                if (this.eventBus) {
+                    this.eventBus.publish(createSettingsChangeEvent('volume.music', clampedValue, previousValue));
+                }
                 // TODO: Persist settings
             }
         } else {
@@ -141,10 +160,15 @@ export class SettingsManager {
     setSfxVolumeMultiplier(value: number): void {
         if (this.settings && typeof value === 'number' && value >= 0) { // Allow > 1? Usually 0-1.
              const clampedValue = Math.max(0, Math.min(1, value)); // Clamp between 0 and 1
-            if (this.settings.volume.sfx !== clampedValue) {
+             const previousValue = this.settings.volume.sfx; // Store previous value
+            if (previousValue !== clampedValue) {
                 this.settings.volume.sfx = clampedValue;
                 console.log(`SettingsManager: SFX Volume Multiplier set to ${clampedValue}`);
                 this.notifyVolumeListeners('sfx', clampedValue);
+                // Publish event
+                if (this.eventBus) {
+                    this.eventBus.publish(createSettingsChangeEvent('volume.sfx', clampedValue, previousValue));
+                }
                 // TODO: Persist settings
             }
         } else {

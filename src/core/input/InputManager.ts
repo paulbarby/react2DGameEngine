@@ -1,15 +1,20 @@
+import { EventBus } from '../events/EventBus.js'; // Import EventBus
+import { createInputEvent } from '../events/EventTypes.js'; // Import event creator
+
 export class InputManager {
     private keysDown: Set<string> = new Set();
     private mousePosition: { x: number, y: number } = { x: 0, y: 0 };
     private mouseButtonsDown: Set<number> = new Set();
     private targetElement: HTMLElement | Window;
+    private eventBus: EventBus; // Add EventBus instance
 
     // Optional: Track keys pressed/released this frame
     // private keysPressedThisFrame: Set<string> = new Set();
     // private keysReleasedThisFrame: Set<string> = new Set();
 
-    constructor(targetElement: HTMLElement | Window = window) {
+    constructor(targetElement: HTMLElement | Window = window, eventBus: EventBus) { // Inject EventBus
         this.targetElement = targetElement;
+        this.eventBus = eventBus; // Store EventBus instance
 
         // Bind event handlers to ensure 'this' context
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -44,32 +49,39 @@ export class InputManager {
 
     private handleKeyDown(event: Event): void {
         const keyboardEvent = event as KeyboardEvent; // Type assertion
+        const { code, key, ctrlKey, shiftKey, altKey } = keyboardEvent;
 
         // Prevent default browser behavior for relevant keys (scrolling, etc.)
         // Check if the target is NOT an input field to allow typing in inputs
         const targetTagName = (event.target as HTMLElement)?.tagName;
         const isInput = targetTagName === 'INPUT' || targetTagName === 'TEXTAREA' || targetTagName === 'SELECT';
 
-        if (!isInput && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(keyboardEvent.code)) {
-            console.log(`InputManager: Preventing default for ${keyboardEvent.code}`); // Log prevention
+        if (!isInput && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+            console.log(`InputManager: Preventing default for ${code}`); // Log prevention
             keyboardEvent.preventDefault();
         }
 
         // Log only if it's a new key press
-        if (!this.keysDown.has(keyboardEvent.code)) {
-            console.log(`InputManager: Key down - ${keyboardEvent.code}`); // Added log
-            // this.keysPressedThisFrame.add(keyboardEvent.code); // Track press start
+        if (!this.keysDown.has(code)) {
+            console.log(`InputManager: Key down - ${code}`); // Added log
+            // this.keysPressedThisFrame.add(code); // Track press start
+            // Publish event
+            this.eventBus.publish(createInputEvent('keyDown', { code, key, ctrlKey, shiftKey, altKey }));
         }
-        this.keysDown.add(keyboardEvent.code);
+        this.keysDown.add(code);
     }
 
     private handleKeyUp(event: Event): void {
         const keyboardEvent = event as KeyboardEvent; // Type assertion
-        if (this.keysDown.has(keyboardEvent.code)) {
-            console.log(`InputManager: Key up - ${keyboardEvent.code}`); // Added log
-            // this.keysReleasedThisFrame.add(keyboardEvent.code); // Track release
+        const { code, key, ctrlKey, shiftKey, altKey } = keyboardEvent;
+
+        if (this.keysDown.has(code)) {
+            console.log(`InputManager: Key up - ${code}`); // Added log
+            // this.keysReleasedThisFrame.add(code); // Track release
+            // Publish event
+            this.eventBus.publish(createInputEvent('keyUp', { code, key, ctrlKey, shiftKey, altKey }));
         }
-        this.keysDown.delete(keyboardEvent.code);
+        this.keysDown.delete(code);
     }
 
     private handleMouseMove(event: Event): void {
@@ -81,18 +93,42 @@ export class InputManager {
         }
         this.mousePosition.x = mouseEvent.clientX - rect.left;
         this.mousePosition.y = mouseEvent.clientY - rect.top;
+        // Publish event
+        this.eventBus.publish(createInputEvent('mouseMove', { x: this.mousePosition.x, y: this.mousePosition.y }));
         // console.log(`Mouse move: ${this.mousePosition.x}, ${this.mousePosition.y}`);
     }
 
     private handleMouseDown(event: Event): void {
         const mouseEvent = event as MouseEvent; // Type assertion
-        this.mouseButtonsDown.add(mouseEvent.button);
+        const button = mouseEvent.button;
+        // Adjust position based on target element (if not window)
+        let rect: DOMRect | { left: 0, top: 0 } = { left: 0, top: 0 };
+        if (this.targetElement instanceof HTMLElement) {
+            rect = this.targetElement.getBoundingClientRect();
+        }
+        const x = mouseEvent.clientX - rect.left;
+        const y = mouseEvent.clientY - rect.top;
+
+        this.mouseButtonsDown.add(button);
+        // Publish event
+        this.eventBus.publish(createInputEvent('mouseDown', { x, y, button }));
         // console.log(`Mouse down: button ${mouseEvent.button}`);
     }
 
     private handleMouseUp(event: Event): void {
         const mouseEvent = event as MouseEvent; // Type assertion
-        this.mouseButtonsDown.delete(mouseEvent.button);
+        const button = mouseEvent.button;
+        // Adjust position based on target element (if not window)
+        let rect: DOMRect | { left: 0, top: 0 } = { left: 0, top: 0 };
+        if (this.targetElement instanceof HTMLElement) {
+            rect = this.targetElement.getBoundingClientRect();
+        }
+        const x = mouseEvent.clientX - rect.left;
+        const y = mouseEvent.clientY - rect.top;
+
+        this.mouseButtonsDown.delete(button);
+        // Publish event
+        this.eventBus.publish(createInputEvent('mouseUp', { x, y, button }));
         // console.log(`Mouse up: button ${mouseEvent.button}`);
     }
 
@@ -132,6 +168,7 @@ export class InputManager {
         this.removeEventListeners();
         this.keysDown.clear();
         this.mouseButtonsDown.clear();
+        // No need to clear eventBus listeners here, let consumers manage subscriptions
         console.log('InputManager destroyed.');
     }
 }

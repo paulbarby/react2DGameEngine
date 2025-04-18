@@ -1,6 +1,7 @@
 import { GameObject } from './GameObject.js'; // Added .js
 // Import known component constructors
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Added .js
+import { createGameObjectEvent } from '../events/EventTypes.js'; // Import event creator
 // Add other component imports here
 export class ObjectManager {
     constructor() {
@@ -9,6 +10,7 @@ export class ObjectManager {
         // Registry to map string types to component constructors
         this.componentRegistry = new Map();
         this.assetLoader = null; // Store AssetLoader reference
+        this.eventBus = null; // Store EventBus reference
         // Pre-register known components
         this.registerComponent('SpriteComponent', SpriteComponent);
         // Register other components here
@@ -16,6 +18,10 @@ export class ObjectManager {
     // Method to set the AssetLoader, called after it's created
     setAssetLoader(loader) {
         this.assetLoader = loader;
+    }
+    // Method to set the EventBus
+    setEventBus(eventBus) {
+        this.eventBus = eventBus;
     }
     registerComponent(type, constructor) {
         if (this.componentRegistry.has(type)) {
@@ -50,7 +56,7 @@ export class ObjectManager {
                     // Prepare properties, potentially adding common dependencies
                     const props = Object.assign(Object.assign(Object.assign({}, componentConfig.properties), { 
                         // Inject common dependencies if the component needs them
-                        assetLoader: this.assetLoader, objectManager: this }), (componentConfig.properties.inputManager && { inputManager: componentConfig.properties.inputManager }));
+                        assetLoader: this.assetLoader, objectManager: this, eventBus: this.eventBus }), (componentConfig.properties.inputManager && { inputManager: componentConfig.properties.inputManager }));
                     // Filter out properties that are explicitly undefined
                     // (Handles cases where inputManager might be undefined in the original config)
                     Object.keys(props).forEach(key => {
@@ -73,6 +79,10 @@ export class ObjectManager {
             }
             this.objectsByLayer.get(gameObject.layerId).push(gameObject);
             console.log(`ObjectManager created: ${gameObject.name} (${gameObject.id})`);
+            // Publish event
+            if (this.eventBus) {
+                this.eventBus.publish(createGameObjectEvent('gameObjectCreated', gameObject));
+            }
             return gameObject;
         }
         catch (error) {
@@ -99,6 +109,10 @@ export class ObjectManager {
     destroyObject(id) {
         const object = this.gameObjects.get(id);
         if (object) {
+            // Publish event BEFORE destroying
+            if (this.eventBus) {
+                this.eventBus.publish(createGameObjectEvent('gameObjectDestroyed', object));
+            }
             object.destroy(); // Call object's internal destroy logic (destroys components)
             // Remove from main map
             this.gameObjects.delete(id);
@@ -122,6 +136,7 @@ export class ObjectManager {
     }
     clearAllObjects() {
         // Iterate over values and call destroyObject to ensure proper cleanup
+        // destroyObject will publish the events
         const ids = Array.from(this.gameObjects.keys());
         ids.forEach(id => this.destroyObject(id));
         // Explicitly clear maps just in case (though destroyObject should handle it)

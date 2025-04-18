@@ -6,6 +6,7 @@ import { SceneManager } from './core/scene/SceneManager.js';
 import { GameLoop } from './core/engine/GameLoop.js';
 import { Project, Scene, GameObjectConfig } from './types/project.js';
 import { SpriteComponent } from './core/components/SpriteComponent.js'; // For simple objects
+import { EventBus } from './core/events/EventBus.js'; // Import EventBus
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -30,9 +31,11 @@ async function main() {
     try { audioContext = new (window.AudioContext || (window as any).webkitAudioContext)(); /* ... resume logic ... */ }
     catch (e) { updateStatus('Error: Web Audio API not supported.'); return; }
 
+    const eventBus = new EventBus(); // Create EventBus instance
     const assetLoader = new AssetLoader(audioContext);
-    const inputManager = new InputManager(canvas); // Input not used, but needed by GameLoop
+    const inputManager = new InputManager(canvas, eventBus); // Pass EventBus instance
     const objectManager = new ObjectManager();
+    objectManager.setEventBus(eventBus); // Also set EventBus for ObjectManager if needed
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas); // Renderer doesn't need stars for this demo
 

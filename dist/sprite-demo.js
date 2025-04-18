@@ -16,6 +16,7 @@ import { SoundManager } from './core/sound/SoundManager.js';
 import { SettingsManager } from './core/settings/SettingsManager.js'; // Import SettingsManager
 import { GameLoop } from './core/engine/GameLoop.js';
 import { SpriteComponent } from './core/components/SpriteComponent.js'; // Import SpriteComponent
+import { EventBus } from './core/events/EventBus.js'; // Import EventBus
 const canvas = document.getElementById('game-canvas');
 const statusEl = document.getElementById('status');
 // Define the constant here for use in the extended loop
@@ -51,7 +52,9 @@ function main() {
             updateStatus('Error: Web Audio API not supported.');
             return;
         }
+        const eventBus = new EventBus(); // Create EventBus instance
         const settingsManager = new SettingsManager(); // Instantiate
+        settingsManager.setEventBus(eventBus); // Also set EventBus for SettingsManager if needed
         console.log("sprite-demo: Calling settingsManager.loadSettings()...");
         const loadedSettings = yield settingsManager.loadSettings(); // Wait and get settings
         console.log("sprite-demo: settingsManager.loadSettings() finished.");
@@ -62,8 +65,9 @@ function main() {
         console.log("sprite-demo: Settings loaded, proceeding to create SoundManager.");
         console.log(`sprite-demo: Master volume from manager: ${settingsManager.getMasterVolume()}`);
         const assetLoader = new AssetLoader(audioContext);
-        const inputManager = new InputManager(canvas); // Target input to canvas
+        const inputManager = new InputManager(canvas, eventBus); // Pass EventBus instance
         const objectManager = new ObjectManager(); // Will auto-register SpriteComponent
+        objectManager.setEventBus(eventBus); // Also set EventBus for ObjectManager if needed
         const sceneManager = new SceneManager();
         const renderer = new Renderer(canvas);
         const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Pass settingsManager to SoundManager
