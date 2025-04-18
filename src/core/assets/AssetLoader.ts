@@ -25,7 +25,8 @@ export class AssetLoader {
 
     async loadAllAssets(manifest: AssetManifest): Promise<void> {
         const promises: Promise<void>[] = [];
-        const assetEntries: { key: string, url: string, type: 'image' | 'sound' | 'spriteSheet' }[] = [];
+        // Add 'music' to the type union
+        const assetEntries: { key: string, url: string, type: 'image' | 'sound' | 'spriteSheet' | 'music' }[] = [];
 
         // Collect all assets to load
         for (const key in manifest.images) {
@@ -35,12 +36,22 @@ export class AssetLoader {
             assetEntries.push({ key, url: manifest.sounds[key], type: 'sound' });
         }
         for (const key in manifest.spriteSheets) {
-            // Sprite sheet definitions are JSON files
             assetEntries.push({ key, url: manifest.spriteSheets[key], type: 'spriteSheet' });
+        }
+        // Add music entries (just store URL)
+        for (const key in manifest.music) {
+            assetEntries.push({ key, url: manifest.music[key], type: 'music' });
         }
 
         // Create loading promises
         assetEntries.forEach(entry => {
+            // Handle music type: Just store the URL string directly
+            if (entry.type === 'music') {
+                this.loadedAssets.set(entry.key, entry.url);
+                console.log(`Registered music URL for key ${entry.key}: ${entry.url}`);
+                return; // No async loading needed for music URL itself
+            }
+
             let loadPromise: Promise<Asset>;
             switch (entry.type) {
                 case 'image':

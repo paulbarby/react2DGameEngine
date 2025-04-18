@@ -2,7 +2,7 @@ export interface AssetManifest {
     images: { [key: string]: string };
     sounds: { [key: string]: string };
     spriteSheets: { [key: string]: string };
-    // Assuming _def.json files are implicitly linked or specified elsewhere
+    music: { [key: string]: string }; // Added music category
 }
 
 export interface AnimationDefinition {

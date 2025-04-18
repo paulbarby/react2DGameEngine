@@ -1,13 +1,14 @@
 export class GameObject {
     constructor(config) {
+        this.rotation = 0; // Default rotation
+        this.scaleX = 1; // Default scale
+        this.scaleY = 1; // Default scale
         this.components = []; // Use array for order if needed
         this.id = config.id;
         this.name = config.name;
         this.x = config.x;
         this.y = config.y;
-        this.rotation = 0; // Default rotation
-        this.scaleX = 1; // Default scale
-        this.scaleY = 1; // Default scale
+        this.layerId = config.layerId; // Initialize layerId from config
         // Components are added by ObjectManager after construction
     }
     update(deltaTime) {
