@@ -8,14 +8,16 @@ interface SpriteComponentProps {
     // Initial width/height might come from definition, or be overridden
     width?: number;
     height?: number;
-    offsetX?: number;
-    offsetY?: number;
+    offsetX?: number; // Keep for potential direct override, though anchor is preferred
+    offsetY?: number; // Keep for potential direct override
+    anchor?: { x: number, y: number }; // Normalized anchor point
 }
 
 export class SpriteComponent extends BaseComponent {
     public spriteRef: string;
     public width: number = 0;
     public height: number = 0;
+    public anchor: { x: number, y: number } = { x: 0, y: 0 }; // Default anchor: top-left
     public offsetX: number = 0;
     public offsetY: number = 0;
 
@@ -33,8 +35,13 @@ export class SpriteComponent extends BaseComponent {
         this.spriteRef = config.spriteRef;
         this.width = config.width ?? 0; // Default or allow override
         this.height = config.height ?? 0;
-        this.offsetX = config.offsetX ?? 0;
-        this.offsetY = config.offsetY ?? 0;
+        this.anchor = config.anchor ?? { x: 0, y: 0 }; // Use provided anchor or default
+
+        // Use direct offset override ONLY if anchor is NOT provided
+        if (!config.anchor) {
+            this.offsetX = config.offsetX ?? 0;
+            this.offsetY = config.offsetY ?? 0;
+        }
     }
 
     init(): void {
@@ -43,6 +50,10 @@ export class SpriteComponent extends BaseComponent {
         // For now, just log. Actual parsing/lookup will happen in Renderer or an Animation system.
         console.log(`SpriteComponent for ${this.gameObject?.name} initialized with ref: ${this.spriteRef}`);
         this.parseSpriteRef();
+        // Calculate initial offset if dimensions are already known from config
+        if (this.width > 0 && this.height > 0) {
+            this.updateOffsetFromAnchor();
+        }
     }
 
     // Helper to parse "sheetKey/spriteName" format
@@ -72,12 +83,24 @@ export class SpriteComponent extends BaseComponent {
             // Set default component size if not overridden
             if (this.width === 0) this.width = this.sourceWidth;
             if (this.height === 0) this.height = this.sourceHeight;
+
+            // Update offset based on potentially new dimensions
+            this.updateOffsetFromAnchor();
         } else if (definition) {
              console.warn(`Sprite name ${this.currentSpriteName} not found in definition for sheet ${this.currentSheetKey}`);
         }
         // If no definition provided, Renderer will need to look it up
     }
 
+    // Calculate pixel offset based on anchor point and dimensions
+    updateOffsetFromAnchor(): void {
+        // Only calculate if width and height are valid
+        if (this.width > 0 && this.height > 0) {
+            this.offsetX = this.width * this.anchor.x;
+            this.offsetY = this.height * this.anchor.y;
+            // console.log(`Updated offset for ${this.gameObject?.name}: (${this.offsetX}, ${this.offsetY}) based on anchor (${this.anchor.x}, ${this.anchor.y}) and size (${this.width}, ${this.height})`);
+        }
+    }
 
     update(deltaTime: number): void {
         // Placeholder for animation logic (would likely involve time accumulation)
