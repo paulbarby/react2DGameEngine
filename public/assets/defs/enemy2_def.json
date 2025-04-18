@@ -8,7 +8,7 @@
   "animations": {
     "flying": {
       "frames": ["idle"],
-      "duration": 0.5,
+      "duration": 1,
       "loop": true
     }
   }

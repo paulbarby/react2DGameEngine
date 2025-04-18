@@ -25,80 +25,84 @@ export class AssetLoader {
 
     async loadAllAssets(manifest: AssetManifest): Promise<void> {
         const promises: Promise<void>[] = [];
-        // Add 'music' to the type union
-        const assetEntries: { key: string, url: string, type: 'image' | 'sound' | 'spriteSheet' | 'music' }[] = [];
+        const imagesToLoad: Map<string, string> = new Map(); // Map imageKey to url
+        const soundsToLoad: Map<string, string> = new Map(); // Map soundKey to url
+        const sheetsToLoad: Map<string, string> = new Map(); // Map sheetKey to url
+        const musicToRegister: Map<string, string> = new Map(); // Map musicKey to url
 
-        // Collect all assets to load
+        // 1. Collect all explicitly listed assets
         for (const key in manifest.images) {
-            assetEntries.push({ key, url: manifest.images[key], type: 'image' });
+            imagesToLoad.set(key, manifest.images[key]);
         }
         for (const key in manifest.sounds) {
-            assetEntries.push({ key, url: manifest.sounds[key], type: 'sound' });
+            soundsToLoad.set(key, manifest.sounds[key]);
         }
         for (const key in manifest.spriteSheets) {
-            assetEntries.push({ key, url: manifest.spriteSheets[key], type: 'spriteSheet' });
+            sheetsToLoad.set(key, manifest.spriteSheets[key]);
         }
-        // Add music entries (just store URL)
         for (const key in manifest.music) {
-            assetEntries.push({ key, url: manifest.music[key], type: 'music' });
+            musicToRegister.set(key, manifest.music[key]);
         }
 
-        // Create loading promises
-        assetEntries.forEach(entry => {
-            // Handle music type: Just store the URL string directly
-            if (entry.type === 'music') {
-                this.loadedAssets.set(entry.key, entry.url);
-                console.log(`Registered music URL for key ${entry.key}: ${entry.url}`);
-                return; // No async loading needed for music URL itself
-            }
-
-            let loadPromise: Promise<Asset>;
-            switch (entry.type) {
-                case 'image':
-                    loadPromise = this.loadImage(entry.url);
-                    break;
-                case 'sound':
-                    loadPromise = this.loadSound(entry.url);
-                    break;
-                case 'spriteSheet':
-                    loadPromise = this.loadJson<SpriteDefinition>(entry.url);
-                    break;
-                default:
-                    console.warn(`Unknown asset type for key ${entry.key}`);
-                    return; // Skip unknown types
-            }
-
-            promises.push(
-                loadPromise
-                    .then(asset => {
-                        this.loadedAssets.set(entry.key, asset);
-                        // If it's a sprite sheet definition, also load its associated image
-                        if (entry.type === 'spriteSheet') {
-                            const def = asset as SpriteDefinition;
-                            if (def.image && manifest.images[def.image]) {
-                                // Avoid duplicate loading if image is already listed separately
-                                if (!this.loadedAssets.has(def.image)) {
-                                    return this.loadImage(manifest.images[def.image]).then(img => {
-                                        this.loadedAssets.set(def.image, img);
-                                    });
-                                }
-                            } else {
-                                console.warn(`Sprite sheet definition ${entry.key} references image ${def.image}, which is not in the manifest's images.`);
+        // 2. Load all sprite sheet definitions FIRST to find their image dependencies
+        const sheetDefinitionPromises: Promise<void>[] = [];
+        for (const [key, url] of sheetsToLoad.entries()) {
+            sheetDefinitionPromises.push(
+                this.loadJson<SpriteDefinition>(url)
+                    .then(def => {
+                        this.loadedAssets.set(key, def); // Store definition
+                        // Check if the definition's image is in the manifest and add it to imagesToLoad if not already there
+                        if (def.image && manifest.images[def.image]) {
+                            if (!imagesToLoad.has(def.image)) {
+                                imagesToLoad.set(def.image, manifest.images[def.image]);
+                                console.log(`AssetLoader: Added image '${def.image}' from spritesheet '${key}' to load list.`);
                             }
+                        } else if (def.image) {
+                            console.warn(`AssetLoader: Sprite sheet '${key}' references image '${def.image}', but it's missing from manifest.images.`);
                         }
                     })
                     .catch(error => {
-                        console.error(`Failed to load asset ${entry.key} from ${entry.url}:`, error);
-                        // Decide if loading should fail entirely or just skip this asset
+                        console.error(`Failed to load sprite sheet definition ${key} from ${url}:`, error);
                     })
             );
-        });
+        }
+        // Wait for all definitions to load before proceeding
+        await Promise.all(sheetDefinitionPromises);
+        console.log(`AssetLoader: Finished loading ${sheetsToLoad.size} sprite sheet definitions.`);
 
+        // 3. Create loading promises for all identified images and sounds
+        for (const [key, url] of imagesToLoad.entries()) {
+            // Avoid reloading if already loaded (e.g., by sheet definition step, though unlikely now)
+            if (!this.loadedAssets.has(key)) {
+                promises.push(
+                    this.loadImage(url)
+                        .then(asset => { this.loadedAssets.set(key, asset); })
+                        .catch(error => console.error(`Failed to load image ${key} from ${url}:`, error))
+                );
+            }
+        }
+        for (const [key, url] of soundsToLoad.entries()) {
+             if (!this.loadedAssets.has(key)) {
+                promises.push(
+                    this.loadSound(url)
+                        .then(asset => { this.loadedAssets.set(key, asset); })
+                        .catch(error => console.error(`Failed to load sound ${key} from ${url}:`, error))
+                );
+            }
+        }
+
+        // 4. Register music URLs (no async loading needed here)
+        for (const [key, url] of musicToRegister.entries()) {
+            this.loadedAssets.set(key, url);
+            console.log(`Registered music URL for key ${key}: ${url}`);
+        }
+
+        // 5. Wait for all images and sounds to load
         try {
             await Promise.all(promises);
-            console.log('All assets loaded successfully.');
+            console.log(`AssetLoader: Successfully loaded ${imagesToLoad.size} images and ${soundsToLoad.size} sounds.`);
         } catch (error) {
-            console.error('Error during asset loading:', error);
+            console.error('AssetLoader: Error during final asset loading phase:', error);
             // Handle aggregate loading failure if necessary
         }
     }

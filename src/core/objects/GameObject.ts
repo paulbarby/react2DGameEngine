@@ -4,17 +4,19 @@ import { GameObjectConfig } from '../../types/project.js';
 export class GameObject implements IGameObject {
     public readonly id: string;
     public name: string;
+    public type: string; // Added type property
     public x: number;
     public y: number;
     public rotation: number = 0; // Default rotation
     public scaleX: number = 1;   // Default scale
     public scaleY: number = 1;   // Default scale
     public layerId: string;      // Added layerId property
-    public components: IComponent[] = []; // Use array for order if needed
+    public readonly components: IComponent[] = []; // Make components array readonly externally via interface
 
     constructor(config: GameObjectConfig) {
         this.id = config.id;
         this.name = config.name;
+        this.type = config.type; // Initialize type from config
         this.x = config.x;
         this.y = config.y;
         this.layerId = config.layerId; // Initialize layerId from config
@@ -45,14 +47,17 @@ export class GameObject implements IGameObject {
     }
 
     destroy(): void {
-        // Call destroy on components in reverse order of addition? Or forward?
-        // Forward seems simpler.
-        for (const component of this.components) {
-            component.destroy();
-            component.gameObject = null; // Break reference
+        console.log(`Destroying GameObject: ${this.name} (${this.id})`);
+        // Call destroy on each component first
+        // Iterate backwards to safely remove/handle dependencies if needed
+        for (let i = this.components.length - 1; i >= 0; i--) {
+            try {
+                this.components[i].destroy();
+            } catch (error) {
+                 console.error(`Error destroying component on ${this.name}:`, error);
+            }
         }
-        this.components = []; // Clear the array
-        // Any other cleanup specific to the GameObject itself
-        console.log(`GameObject ${this.id} (${this.name}) destroyed.`);
+        // Clear the array by setting its length to 0, instead of reassigning
+        this.components.length = 0;
     }
 }

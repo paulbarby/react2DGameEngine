@@ -52,6 +52,11 @@ app.get('/music-demo', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'music-demo.html')); // Added 'web'
 });
 
+// Route for the collision demo page
+app.get('/collision-demo', (req, res) => {
+    res.sendFile(path.join(__dirname, 'web', 'collision-demo.html')); // Added 'web'
+});
+
 // Updated root route to serve the main index.html from 'web'
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'index.html')); // Added 'web'
@@ -68,4 +73,5 @@ app.listen(port, () => {
     console.log('Navigate to http://localhost:3000/scene-manager-demo');
     console.log('Navigate to http://localhost:3000/layer-demo');
     console.log('Navigate to http://localhost:3000/music-demo');
+    console.log('Navigate to http://localhost:3000/collision-demo');
 });

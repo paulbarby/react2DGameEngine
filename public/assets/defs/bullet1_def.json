@@ -1,5 +1,5 @@
 {
-  "image": "playerBullet",
+  "image": "bullet1",
   "frameWidth": 16,
   "frameHeight": 16,
   "sprites": {
@@ -9,7 +9,7 @@
     "frame4": { "x": 0, "y": 46 }
   },
   "animations": {
-    "flying": {
+    "default": {
       "frames": ["frame1","frame2","frame3","frame4"],
       "duration": 0.1,
       "loop": true

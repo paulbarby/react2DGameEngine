@@ -92,6 +92,11 @@ export class Renderer {
         // --- Rendering Logic ---
         const spriteComp = object.getComponent(SpriteComponent);
         if (spriteComp) {
+            // <<< ADD LOGGING FOR BULLETS >>>
+            if (object.type === 'bullet') {
+                console.log(`Drawing bullet ${object.id}: spriteRef='${spriteComp.spriteRef}', sheet='${spriteComp.currentSheetKey}', sprite='${spriteComp.currentSpriteName}', imageKey='${spriteComp.imageKey}'`);
+            }
+            // <<< END LOGGING FOR BULLETS >>>
             let image;
             let sx = spriteComp.sourceX, sy = spriteComp.sourceY, sw = spriteComp.sourceWidth, sh = spriteComp.sourceHeight;
             // dx/dy are now calculated relative to the anchor point (object.x, object.y)
@@ -139,6 +144,13 @@ export class Renderer {
                     updateComponentSourceRect = true; // Mark for update
                 }
             }
+            // <<< ADD LOGGING FOR BULLETS (IMAGE/RECT) >>>
+            if (object.type === 'bullet') {
+                const definition = spriteComp.currentSheetKey ? assetLoader.getSpriteSheetDefinition(spriteComp.currentSheetKey) : undefined;
+                const spriteData = definition && spriteComp.currentSpriteName ? definition.sprites[spriteComp.currentSpriteName] : undefined;
+                console.log(`  -> Bullet ${object.id}: Image found=${!!image}, Def found=${!!definition}, SpriteData found=${!!spriteData}, Rect=(${sx},${sy},${sw},${sh})`);
+            }
+            // <<< END LOGGING FOR BULLETS (IMAGE/RECT) >>>
             // Update component's source rect info AND OFFSET if needed
             if (updateComponentSourceRect && sw > 0 && sh > 0) {
                 spriteComp.sourceX = sx;
@@ -181,6 +193,11 @@ export class Renderer {
                     this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
                     console.warn(`Source dimensions invalid for ${object.name} (sw=${sw}, sh=${sh})`);
                 }
+                // <<< ADD LOGGING FOR BULLETS (PLACEHOLDER) >>>
+                if (object.type === 'bullet') {
+                    console.error(`  -> Bullet ${object.id}: Drawing placeholder! Reason: ${!image ? 'No Image' : (sw <= 0 || sh <= 0 ? 'Invalid Rect' : 'Unknown')}`);
+                }
+                // <<< END LOGGING FOR BULLETS (PLACEHOLDER) >>>
             }
         }
         else {
