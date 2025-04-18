@@ -3,9 +3,10 @@ export class GameObject {
         this.rotation = 0; // Default rotation
         this.scaleX = 1; // Default scale
         this.scaleY = 1; // Default scale
-        this.components = []; // Use array for order if needed
+        this.components = []; // Make components array readonly externally via interface
         this.id = config.id;
         this.name = config.name;
+        this.type = config.type; // Initialize type from config
         this.x = config.x;
         this.y = config.y;
         this.layerId = config.layerId; // Initialize layerId from config
@@ -32,14 +33,18 @@ export class GameObject {
         return undefined;
     }
     destroy() {
-        // Call destroy on components in reverse order of addition? Or forward?
-        // Forward seems simpler.
-        for (const component of this.components) {
-            component.destroy();
-            component.gameObject = null; // Break reference
+        console.log(`Destroying GameObject: ${this.name} (${this.id})`);
+        // Call destroy on each component first
+        // Iterate backwards to safely remove/handle dependencies if needed
+        for (let i = this.components.length - 1; i >= 0; i--) {
+            try {
+                this.components[i].destroy();
+            }
+            catch (error) {
+                console.error(`Error destroying component on ${this.name}:`, error);
+            }
         }
-        this.components = []; // Clear the array
-        // Any other cleanup specific to the GameObject itself
-        console.log(`GameObject ${this.id} (${this.name}) destroyed.`);
+        // Clear the array by setting its length to 0, instead of reassigning
+        this.components.length = 0;
     }
 }

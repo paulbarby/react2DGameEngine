@@ -4,6 +4,7 @@ import { SpriteDefinition } from './project';
 export interface IGameObject {
     readonly id: string;
     name: string;
+    type: string; // Added type property
     x: number;
     y: number;
     rotation: number; // in radians

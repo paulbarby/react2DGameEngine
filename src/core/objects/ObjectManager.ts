@@ -3,6 +3,7 @@ import { Scene, GameObjectConfig } from '../../types/project.js'; // Added .js
 import { GameObject } from './GameObject.js'; // Added .js
 // Import known component constructors
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Added .js
+import { AssetLoader } from '../assets/AssetLoader.js'; // Import AssetLoader
 // Add other component imports here
 
 export class ObjectManager {
@@ -10,11 +11,17 @@ export class ObjectManager {
     private objectsByLayer: Map<string, IGameObject[]> = new Map();
     // Registry to map string types to component constructors
     private componentRegistry: Map<string, new (config: any) => IComponent> = new Map();
+    private assetLoader: AssetLoader | null = null; // Store AssetLoader reference
 
     constructor() {
         // Pre-register known components
         this.registerComponent('SpriteComponent', SpriteComponent);
         // Register other components here
+    }
+
+    // Method to set the AssetLoader, called after it's created
+    setAssetLoader(loader: AssetLoader): void {
+        this.assetLoader = loader;
     }
 
     registerComponent(type: string, constructor: new (config: any) => IComponent): void {
@@ -28,40 +35,71 @@ export class ObjectManager {
     createObjectsForScene(scene: Scene): void {
         this.clearAllObjects();
         console.log(`Creating objects for scene: ${scene.name}`);
+        scene.objects.forEach(config => this.createObjectFromConfig(config)); // Use the new method
+        console.log(`Finished creating ${this.gameObjects.size} objects for scene.`);
+    }
 
-        for (const config of scene.objects) {
-            // Create the GameObject instance
+    /**
+     * Creates a single GameObject from its configuration, adds its components,
+     * and registers it with the manager.
+     * @param config The configuration for the GameObject.
+     * @returns The created GameObject or null if creation failed.
+     */
+    createObjectFromConfig(config: GameObjectConfig): IGameObject | null {
+        if (this.gameObjects.has(config.id)) {
+            console.warn(`ObjectManager: Object with ID "${config.id}" already exists. Skipping creation.`);
+            return this.gameObjects.get(config.id) || null;
+        }
+
+        try {
             const gameObject = new GameObject(config);
 
-            // Store the GameObject
-            if (this.gameObjects.has(gameObject.id)) {
-                 console.warn(`Duplicate GameObject ID "${gameObject.id}" detected in scene "${scene.name}". Overwriting.`);
-            }
-            this.gameObjects.set(gameObject.id, gameObject);
-
-            // Add to layer map
-            if (!this.objectsByLayer.has(config.layerId)) {
-                this.objectsByLayer.set(config.layerId, []);
-            }
-            this.objectsByLayer.get(config.layerId)!.push(gameObject);
-
-            // Create and add components
+            // Add components
             for (const componentConfig of config.components) {
                 const ComponentConstructor = this.componentRegistry.get(componentConfig.type);
                 if (ComponentConstructor) {
-                    try {
-                        const componentInstance = new ComponentConstructor(componentConfig.properties);
-                        gameObject.addComponent(componentInstance); // addComponent now calls init()
-                    } catch (error) {
-                         console.error(`Error instantiating component "${componentConfig.type}" for GameObject "${gameObject.id}":`, error);
-                    }
+                    // Prepare properties, potentially adding common dependencies
+                    const props: { [key: string]: any } = { // Add index signature to allow string keys
+                        ...componentConfig.properties,
+                        // Inject common dependencies if the component needs them
+                        assetLoader: this.assetLoader,
+                        objectManager: this,
+                        // Only add inputManager if it was originally in properties
+                        // This avoids adding 'inputManager: undefined' if it wasn't there
+                        ...(componentConfig.properties.inputManager && { inputManager: componentConfig.properties.inputManager })
+                    };
+
+                    // Filter out properties that are explicitly undefined
+                    // (Handles cases where inputManager might be undefined in the original config)
+                    Object.keys(props).forEach(key => {
+                        if (props[key] === undefined) {
+                            delete props[key];
+                        }
+                    });
+
+                    const componentInstance = new ComponentConstructor(props);
+                    gameObject.addComponent(componentInstance);
                 } else {
-                    console.error(`Component type "${componentConfig.type}" not registered. Cannot add to GameObject "${gameObject.id}".`);
+                    console.error(`ObjectManager: Unknown component type "${componentConfig.type}" for object "${config.name}". Skipping component.`);
                 }
             }
-             console.log(`Created GameObject: ${gameObject.name} (ID: ${gameObject.id}) with ${gameObject.components.length} components.`);
+
+            // Store the object
+            this.gameObjects.set(gameObject.id, gameObject);
+
+            // Add to layer map
+            if (!this.objectsByLayer.has(gameObject.layerId)) {
+                this.objectsByLayer.set(gameObject.layerId, []);
+            }
+            this.objectsByLayer.get(gameObject.layerId)!.push(gameObject);
+
+            console.log(`ObjectManager created: ${gameObject.name} (${gameObject.id})`);
+            return gameObject;
+
+        } catch (error) {
+            console.error(`ObjectManager: Failed to create object "${config.name}" (ID: ${config.id}):`, error);
+            return null;
         }
-         console.log(`Finished creating objects. Total: ${this.gameObjects.size}`);
     }
 
     update(deltaTime: number): void {
@@ -80,55 +118,44 @@ export class ObjectManager {
         return this.objectsByLayer.get(layerId) || [];
     }
 
-    destroyObject(id: string): void {
-        const gameObject = this.gameObjects.get(id);
-        if (gameObject) {
-            // Find its layer ID before destroying
-            let layerId: string | null = null;
-            for(const [lId, objects] of this.objectsByLayer.entries()) {
-                if (objects.includes(gameObject)) {
-                    layerId = lId;
-                    break;
-                }
-            }
+    getAllObjects(): IterableIterator<IGameObject> {
+        return this.gameObjects.values();
+    }
 
-            // Call destroy on the object (which destroys its components)
-            gameObject.destroy();
+    destroyObject(id: string): void {
+        const object = this.gameObjects.get(id);
+        if (object) {
+            object.destroy(); // Call object's internal destroy logic (destroys components)
 
             // Remove from main map
             this.gameObjects.delete(id);
 
             // Remove from layer map
-            if (layerId) {
-                const layerObjects = this.objectsByLayer.get(layerId);
-                if (layerObjects) {
-                    const index = layerObjects.indexOf(gameObject);
-                    if (index > -1) {
-                        layerObjects.splice(index, 1);
-                    }
+            const layerArray = this.objectsByLayer.get(object.layerId);
+            if (layerArray) {
+                const index = layerArray.indexOf(object);
+                if (index > -1) {
+                    layerArray.splice(index, 1);
                 }
+                // Optional: delete layer entry if array becomes empty
+                // if (layerArray.length === 0) {
+                //     this.objectsByLayer.delete(object.layerId);
+                // }
             }
-             console.log(`Object ${id} removed from ObjectManager.`);
+            console.log(`ObjectManager destroyed and removed: ${object.name} (${id})`);
         } else {
-             console.warn(`Attempted to destroy non-existent object with ID: ${id}`);
+            console.warn(`ObjectManager: Attempted to destroy non-existent object with id: ${id}`);
         }
     }
 
     clearAllObjects(): void {
-        console.log(`Clearing all ${this.gameObjects.size} objects.`);
-        // Important: Iterate over a copy of keys/values if destroyObject modifies the map during iteration
-        const idsToDestroy = Array.from(this.gameObjects.keys());
-        for (const id of idsToDestroy) {
-             // Use destroyObject to ensure proper cleanup from both maps
-             this.destroyObject(id);
-        }
-        // Double check maps are empty
-        if (this.gameObjects.size > 0 || Array.from(this.objectsByLayer.values()).some(arr => arr.length > 0)) {
-             console.error("Failed to clear all objects properly!");
-             this.gameObjects.clear();
-             this.objectsByLayer.clear();
-        } else {
-             console.log("All objects cleared.");
-        }
+        // Iterate over values and call destroyObject to ensure proper cleanup
+        const ids = Array.from(this.gameObjects.keys());
+        ids.forEach(id => this.destroyObject(id));
+
+        // Explicitly clear maps just in case (though destroyObject should handle it)
+        this.gameObjects.clear();
+        this.objectsByLayer.clear();
+        console.log("ObjectManager cleared all objects.");
     }
 }

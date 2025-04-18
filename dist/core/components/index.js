@@ -1,5 +1,9 @@
 export * from './BaseComponent.js';
 export * from './SpriteComponent.js';
-export * from './PlayerControllerComponent.js'; // Added export
-export * from './EnemyMovementComponent.js'; // Added export
+export * from './PlayerControllerComponent.js';
+export * from './EnemyMovementComponent.js';
+export * from './CollisionComponent.js'; // Added export
+export * from './PlayerShootingComponent.js'; // Added export
+export * from './BulletMovementComponent.js'; // Added export
+export * from './AnimationComponent.js'; // Added export
 // Export other components as they are created

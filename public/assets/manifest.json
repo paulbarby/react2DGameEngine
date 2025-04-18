@@ -13,7 +13,7 @@
     "playerSheet": "/assets/defs/player_def.json",
     "enemySheet": "/assets/defs/enemy_def.json",
     "enemy2Sheet": "/assets/defs/enemy2_def.json",
-    "bulletSheet": "/assets/defs/bullet1_def.json"
+    "playerBullet": "/assets/defs/bullet1_def.json"
     
   },
   "music": {
