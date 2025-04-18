@@ -9,6 +9,7 @@ import { GameLoop } from './core/engine/GameLoop.js';
 import { Project, Scene } from './types/project.js';
 import { IGameObject } from './types/core.js';
 import { SpriteComponent } from './core/components/SpriteComponent.js'; // Import SpriteComponent
+import { EventBus } from './core/events/EventBus.js'; // Import EventBus
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -48,7 +49,9 @@ async function main() {
         return;
     }
 
+    const eventBus = new EventBus(); // Create EventBus instance
     const settingsManager = new SettingsManager(); // Instantiate
+    settingsManager.setEventBus(eventBus); // Also set EventBus for SettingsManager if needed
     console.log("sprite-demo: Calling settingsManager.loadSettings()...");
     const loadedSettings = await settingsManager.loadSettings(); // Wait and get settings
     console.log("sprite-demo: settingsManager.loadSettings() finished.");
@@ -62,8 +65,9 @@ async function main() {
 
 
     const assetLoader = new AssetLoader(audioContext);
-    const inputManager = new InputManager(canvas); // Target input to canvas
+    const inputManager = new InputManager(canvas, eventBus); // Pass EventBus instance
     const objectManager = new ObjectManager(); // Will auto-register SpriteComponent
+    objectManager.setEventBus(eventBus); // Also set EventBus for ObjectManager if needed
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas);
     const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Pass settingsManager to SoundManager

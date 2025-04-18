@@ -22,7 +22,6 @@ export class CollisionComponent extends BaseComponent {
     public group: string;
     public collidesWith: string[];
     public usePixelCollision: boolean;
-    public onCollision?: (otherObject: IGameObject) => void; // Callback for collision events
 
     constructor(config: CollisionComponentProps) {
         super();
@@ -66,13 +65,5 @@ export class CollisionComponent extends BaseComponent {
             width: spriteComp.width,
             height: spriteComp.height,
         };
-    }
-
-    // Method called by the CollisionSystem when a collision occurs
-    triggerCollision(otherObject: IGameObject): void {
-        // console.log(`Collision detected: ${this.gameObject?.name} (${this.group}) collided with ${otherObject.name}`);
-        if (this.onCollision) {
-            this.onCollision(otherObject);
-        }
     }
 }

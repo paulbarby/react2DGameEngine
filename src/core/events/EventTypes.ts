@@ -83,27 +83,34 @@ export type EventListenerCallback = (event: AppEvent) => void;
  * Ensures timestamp is always added.
  */
 function createBaseEvent(type: string): BaseEvent {
+    // This function is no longer used directly by the specific creators below
+    // but can be kept for potential future use or internal helpers.
     return { type, timestamp: performance.now() };
 }
 
 // --- Concrete Event Creator Functions (Optional but Recommended) ---
 
 export function createCollisionEvent(objectA: IGameObject, objectB: IGameObject): CollisionEvent {
-    return { ...createBaseEvent('collisionDetected'), objectA, objectB };
+    // Explicitly set the type property to the literal type
+    return { type: 'collisionDetected', timestamp: performance.now(), objectA, objectB };
 }
 
 export function createInputEvent(type: InputEvent['type'], payload: any): InputEvent {
-    return { ...createBaseEvent(type), payload };
+    // Explicitly set the type property to the specific literal type passed in
+    return { type: type, timestamp: performance.now(), payload };
 }
 
 export function createGameObjectEvent(type: GameObjectEvent['type'], gameObject: IGameObject): GameObjectEvent {
-    return { ...createBaseEvent(type), gameObject };
+    // Explicitly set the type property to the specific literal type passed in
+    return { type: type, timestamp: performance.now(), gameObject };
 }
 
 export function createSettingsChangeEvent(changedSetting: string, newValue: any, previousValue?: any): SettingsChangeEvent {
-    return { ...createBaseEvent('settingsChanged'), changedSetting, newValue, previousValue };
+    // Explicitly set the type property to the literal type
+    return { type: 'settingsChanged', timestamp: performance.now(), changedSetting, newValue, previousValue };
 }
 
 export function createUIEvent(type: UIEvent['type'], elementId: string, value?: any): UIEvent {
-    return { ...createBaseEvent(type), elementId, value };
+    // Explicitly set the type property to the specific literal type passed in
+    return { type: type, timestamp: performance.now(), elementId, value };
 }

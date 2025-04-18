@@ -8,6 +8,7 @@ import { Project, Scene, GameObjectConfig } from './types/project.js';
 // Import NEW components
 import { PlayerControllerComponent } from './core/components/PlayerControllerComponent.js';
 import { EnemyMovementComponent } from './core/components/EnemyMovementComponent.js';
+import { EventBus } from './core/events/EventBus.js'; // Import EventBus
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -32,9 +33,11 @@ async function main() {
         document.addEventListener('click', resumeContext); document.addEventListener('keydown', resumeContext);
     } catch (e) { updateStatus('Error: Web Audio API not supported.'); return; }
 
+    const eventBus = new EventBus(); // Create EventBus instance
     const assetLoader = new AssetLoader(audioContext);
-    const inputManager = new InputManager(canvas); // Input targets canvas
+    const inputManager = new InputManager(canvas, eventBus); // Pass EventBus instance
     const objectManager = new ObjectManager();
+    objectManager.setEventBus(eventBus); // Also set EventBus for ObjectManager if needed
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas); // Renderer now handles stars
 

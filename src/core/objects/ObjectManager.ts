@@ -4,6 +4,8 @@ import { GameObject } from './GameObject.js'; // Added .js
 // Import known component constructors
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Added .js
 import { AssetLoader } from '../assets/AssetLoader.js'; // Import AssetLoader
+import { EventBus } from '../events/EventBus.js'; // Import EventBus
+import { createGameObjectEvent } from '../events/EventTypes.js'; // Import event creator
 // Add other component imports here
 
 export class ObjectManager {
@@ -12,6 +14,7 @@ export class ObjectManager {
     // Registry to map string types to component constructors
     private componentRegistry: Map<string, new (config: any) => IComponent> = new Map();
     private assetLoader: AssetLoader | null = null; // Store AssetLoader reference
+    private eventBus: EventBus | null = null; // Store EventBus reference
 
     constructor() {
         // Pre-register known components
@@ -22,6 +25,11 @@ export class ObjectManager {
     // Method to set the AssetLoader, called after it's created
     setAssetLoader(loader: AssetLoader): void {
         this.assetLoader = loader;
+    }
+
+    // Method to set the EventBus
+    setEventBus(eventBus: EventBus): void {
+        this.eventBus = eventBus;
     }
 
     registerComponent(type: string, constructor: new (config: any) => IComponent): void {
@@ -64,6 +72,7 @@ export class ObjectManager {
                         // Inject common dependencies if the component needs them
                         assetLoader: this.assetLoader,
                         objectManager: this,
+                        eventBus: this.eventBus, // Inject EventBus into components
                         // Only add inputManager if it was originally in properties
                         // This avoids adding 'inputManager: undefined' if it wasn't there
                         ...(componentConfig.properties.inputManager && { inputManager: componentConfig.properties.inputManager })
@@ -94,6 +103,10 @@ export class ObjectManager {
             this.objectsByLayer.get(gameObject.layerId)!.push(gameObject);
 
             console.log(`ObjectManager created: ${gameObject.name} (${gameObject.id})`);
+            // Publish event
+            if (this.eventBus) {
+                this.eventBus.publish(createGameObjectEvent('gameObjectCreated', gameObject));
+            }
             return gameObject;
 
         } catch (error) {
@@ -125,6 +138,11 @@ export class ObjectManager {
     destroyObject(id: string): void {
         const object = this.gameObjects.get(id);
         if (object) {
+            // Publish event BEFORE destroying
+            if (this.eventBus) {
+                this.eventBus.publish(createGameObjectEvent('gameObjectDestroyed', object));
+            }
+
             object.destroy(); // Call object's internal destroy logic (destroys components)
 
             // Remove from main map
@@ -150,6 +168,7 @@ export class ObjectManager {
 
     clearAllObjects(): void {
         // Iterate over values and call destroyObject to ensure proper cleanup
+        // destroyObject will publish the events
         const ids = Array.from(this.gameObjects.keys());
         ids.forEach(id => this.destroyObject(id));
 

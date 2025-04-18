@@ -1,4 +1,5 @@
 import { InputManager } from './core/input/InputManager';
+import { EventBus } from './core/events/EventBus'; // Import EventBus
 console.log('InputManager test script loaded.');
 const keysDownEl = document.getElementById('keys-down');
 const mousePosEl = document.getElementById('mouse-pos');
@@ -10,7 +11,8 @@ if (!keysDownEl || !mousePosEl || !mouseButtonsEl || !targetEl || !mouseDisplayE
 }
 else {
     // Instantiate InputManager, targeting the blue box
-    const inputManager = new InputManager(targetEl);
+    const eventBus = new EventBus(); // Create EventBus instance
+    const inputManager = new InputManager(targetEl, eventBus); // Pass EventBus instance
     // Function to update the display
     function updateDisplay() {
         // Keys Down
