@@ -88,6 +88,8 @@ async function main() {
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas);
     const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Pass settingsManager to SoundManager
+    objectManager.setSoundManager(soundManager); // Inject SoundManager
+    objectManager.setInputManager(inputManager); // Inject InputManager
     const collisionSystem = new CollisionSystem(objectManager, assetLoader, eventBus); // Inject EventBus
 
     // --- Register Components ---
@@ -107,11 +109,8 @@ async function main() {
         x: canvas.width / 2, y: canvas.height - 100, layerId: 'main',
         components: [
             { type: 'SpriteComponent', properties: { spriteRef: 'playerSheet/idle', anchor: { x: 0.5, y: 0.5 } } },
-            { type: 'PlayerControllerComponent', properties: { speed: 250, inputManager: inputManager, bounds: { width: canvas.width, height: canvas.height } } },
+            { type: 'PlayerControllerComponent', properties: { speed: 250, bounds: { width: canvas.width, height: canvas.height } } },
             { type: 'PlayerShootingComponent', properties: {
-                inputManager: inputManager,
-                objectManager: objectManager,
-                soundManager: soundManager, // Pass SoundManager
                 bulletPrefab: bulletPrefab, // <<<<---- Prefab is passed here
                 fireRate: 5, // Bullets per second
                 bulletOffsetY: -40 // Fire from slightly above center

@@ -109,6 +109,13 @@ export class Renderer {
     }
 
     private drawObject(object: IGameObject, assetLoader: AssetLoader): void {
+        // --- Add Player Specific Log ---
+        if (object.type === 'player') {
+            const spriteComp = object.getComponent(SpriteComponent);
+            console.log(`Renderer.drawObject: PLAYER DETECTED - ID: ${object.id}, Pos: (${object.x.toFixed(1)}, ${object.y.toFixed(1)}), Rot: ${object.rotation.toFixed(2)}, Scale: (${object.scaleX}, ${object.scaleY}), Sprite: ${spriteComp ? `Ref='${spriteComp.spriteRef}', W=${spriteComp.width}, H=${spriteComp.height}, Anchor=(${spriteComp.anchor.x},${spriteComp.anchor.y}), Offset=(${spriteComp.offsetX.toFixed(1)},${spriteComp.offsetY.toFixed(1)})` : 'No SpriteComp'}`);
+        }
+        // --- End Player Specific Log ---
+
         this.ctx.save();
 
         // Apply object transforms (position is now the anchor point)

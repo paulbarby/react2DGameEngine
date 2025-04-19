@@ -56,6 +56,14 @@ export interface UIEvent extends BaseEvent {
     readonly value?: any; // Optional value (e.g., slider value, checkbox state, selected option)
 }
 
+// --- Gameplay Events ---
+export interface GameplayEvent {
+    readonly type: 'gameplay'; // Specific type for gameplay events
+    readonly subType: string; // Further specifies the gameplay event (e.g., 'enemyDestroyed')
+    readonly timestamp: number;
+    readonly payload: any; // Data specific to the gameplay event
+}
+
 // Add other specific event interfaces here...
 // export interface NetworkEvent extends BaseEvent { ... }
 // export interface GameStateEvent extends BaseEvent { ... }
@@ -69,7 +77,8 @@ export type AppEvent =
     | InputEvent
     | GameObjectEvent
     | SettingsChangeEvent
-    | UIEvent;
+    | UIEvent
+    | GameplayEvent;
     // | NetworkEvent
     // | GameStateEvent;
 
@@ -113,4 +122,19 @@ export function createSettingsChangeEvent(changedSetting: string, newValue: any,
 export function createUIEvent(type: UIEvent['type'], elementId: string, value?: any): UIEvent {
     // Explicitly set the type property to the specific literal type passed in
     return { type: type, timestamp: performance.now(), elementId, value };
+}
+
+/**
+ * Creates a generic gameplay event object.
+ * @param type The specific type of gameplay event (e.g., 'enemyDestroyed', 'powerupCollected').
+ * @param payload Data relevant to the event.
+ * @returns A gameplay event object.
+ */
+export function createGameplayEvent(type: string, payload: any): AppEvent { // Add export
+    return {
+        type: 'gameplay',
+        subType: type,
+        timestamp: Date.now(),
+        payload: payload
+    };
 }

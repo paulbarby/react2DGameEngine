@@ -4,52 +4,58 @@ import { SpriteComponent } from './SpriteComponent.js'; // Needed for bounds che
 
 interface PlayerControllerProps {
     speed: number;
-    inputManager: InputManager;
+    inputManager: InputManager; // This is expected to be injected by ObjectManager
     bounds: { width: number, height: number }; // Canvas dimensions
 }
 
 export class PlayerControllerComponent extends BaseComponent {
     private speed: number;
-    private inputManager: InputManager;
+    private inputManager: InputManager; // This needs to be assigned in the constructor
     private bounds: { width: number, height: number };
 
     constructor(config: PlayerControllerProps) {
         super();
         this.speed = config.speed;
+        // Assign the injected inputManager from the config properties
+        if (!config.inputManager) {
+            throw new Error("PlayerControllerComponent requires 'inputManager' in config properties.");
+        }
         this.inputManager = config.inputManager;
         this.bounds = config.bounds;
     }
 
     init(): void {
-        console.log(`PlayerControllerComponent initialized for ${this.gameObject?.name}`);
+        // Check if inputManager was successfully assigned
+        if (!this.inputManager) {
+             console.error(`PlayerControllerComponent for ${this.gameObject?.name}: InputManager not assigned!`);
+        } else {
+            console.log(`PlayerControllerComponent initialized for ${this.gameObject?.name}`);
+        }
     }
 
     update(deltaTime: number): void {
+        // --- Add Log ---
+        if (!this.inputManager) {
+            console.error(`PlayerControllerComponent (${this.gameObject?.name}): Update called but this.inputManager is missing!`);
+            return; // Stop update if inputManager is missing
+        }
+        // --- End Log ---
+
         if (!this.gameObject) return;
-        console.log(`PlayerControllerComponent update called for ${this.gameObject.name}`); // Log update call
 
         let dx = 0;
         let dy = 0;
         if (this.inputManager.isKeyDown('ArrowLeft') || this.inputManager.isKeyDown('KeyA')) {
-            console.log("PlayerController: LEFT DETECTED"); // Added log
             dx -= 1;
         }
         if (this.inputManager.isKeyDown('ArrowRight') || this.inputManager.isKeyDown('KeyD')) {
-            console.log("PlayerController: RIGHT DETECTED"); // Added log
             dx += 1;
         }
         if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) {
-            console.log("PlayerController: UP DETECTED"); // Added log
             dy -= 1;
         }
         if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) {
-            console.log("PlayerController: DOWN DETECTED"); // Added log
             dy += 1;
-        }
-
-        // Log if any input was detected this frame by the component
-        if (dx !== 0 || dy !== 0) {
-            console.log(`PlayerController Input: dx=${dx}, dy=${dy}`);
         }
 
         const len = Math.sqrt(dx * dx + dy * dy);

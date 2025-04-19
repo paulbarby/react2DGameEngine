@@ -64,7 +64,8 @@ async function main() {
             id: 'pulser1', name: 'Pulsing Scaler (Bullet)', type: 'demo',
             x: 150, y: 400, layerId: 'main',
             components: [
-                { type: 'SpriteComponent', properties: { spriteRef: 'bulletSheet/default', anchor: { x: 0.5, y: 0.5 } } }
+                // Correct the spriteRef to point to a valid sprite name
+                { type: 'SpriteComponent', properties: { spriteRef: 'bulletSheet/frame1', anchor: { x: 0.5, y: 0.5 } } }
             ]
         },
         // Object 5: Rotation around a point (by moving the object itself)
