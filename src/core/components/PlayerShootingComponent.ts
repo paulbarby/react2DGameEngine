@@ -49,25 +49,29 @@ export class PlayerShootingComponent extends BaseComponent {
     fireBullet(): void {
         if (!this.gameObject) return;
 
-        const bulletId = `bullet_${Date.now()}_${Math.random().toString(16).substring(2, 8)}`;
+        const bulletId = `bullet_${Date.now()}_${Math.random().toString(16).slice(2)}`; // Unique ID
         const startX = this.gameObject.x;
-        // Adjust Y based on offset (e.g., fire from front of ship)
         const startY = this.gameObject.y + this.bulletOffsetY;
 
+        // Create the full config for the new bullet object
         const bulletConfig: GameObjectConfig = {
-            ...this.bulletPrefab,
-            id: bulletId,
-            name: `Bullet (${bulletId.substring(0, 4)})`,
-            x: startX,
+            ...this.bulletPrefab, // Spread the prefab properties
+            id: bulletId,         // Assign unique ID
+            x: startX,            // Set start position
             y: startY,
+            // Ensure components have necessary runtime dependencies if not in prefab
+            // (ObjectManager handles injecting itself into BulletMovementComponent)
         };
 
-        // Create the bullet object using ObjectManager
-        this.objectManager.createObjectFromConfig(bulletConfig);
-        // Play shoot sound
-        this.soundManager.playSound('laserShoot');
+        // Use the new createObject method
+        const bulletObject = this.objectManager.createObject(bulletConfig);
 
-        console.log(`Fired bullet: ${bulletId} at (${startX.toFixed(0)}, ${startY.toFixed(0)})`);
+        if (bulletObject) {
+            console.log(`Fired bullet: ${bulletId}`);
+            this.soundManager?.playSound('laserShoot');
+        } else {
+            console.error(`Failed to create bullet object.`);
+        }
     }
 
     destroy(): void {}

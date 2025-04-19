@@ -16,12 +16,17 @@ export class AnimationComponent extends BaseComponent {
     private currentFrameIndex: number = 0;
     private timeAccumulator: number = 0;
     private frameDuration: number = 0;
-    private isPlaying: boolean = false;
+    private _isPlaying: boolean = false; // Renamed private property
 
     constructor(config: AnimationComponentProps) {
         super();
         this.assetLoader = config.assetLoader;
         this.currentAnimationName = config.defaultAnimation ?? null;
+    }
+
+    // Public getter for isPlaying
+    public get isPlaying(): boolean {
+        return this._isPlaying; // Return the renamed private property
     }
 
     init(): void {
@@ -51,7 +56,7 @@ export class AnimationComponent extends BaseComponent {
         const newAnimation = definition.animations[animationName];
 
         // Avoid restarting if already playing the same animation
-        if (this.isPlaying && this.currentAnimation === newAnimation) {
+        if (this._isPlaying && this.currentAnimation === newAnimation) { // Use _isPlaying
             return;
         }
 
@@ -60,14 +65,14 @@ export class AnimationComponent extends BaseComponent {
         this.currentFrameIndex = 0;
         this.timeAccumulator = 0;
         this.frameDuration = this.currentAnimation.duration / this.currentAnimation.frames.length;
-        this.isPlaying = true;
+        this._isPlaying = true; // Use _isPlaying
 
         console.log(`Playing animation "${animationName}" on ${this.gameObject?.name}`);
         this.updateSpriteFrame(); // Set initial frame
     }
 
     stop(): void {
-        this.isPlaying = false;
+        this._isPlaying = false; // Use _isPlaying
         this.currentAnimation = null;
         this.currentAnimationName = null;
         this.currentFrameIndex = 0;
@@ -76,7 +81,7 @@ export class AnimationComponent extends BaseComponent {
     }
 
     update(deltaTime: number): void {
-        if (!this.isPlaying || !this.currentAnimation || !this.spriteComponent || this.frameDuration <= 0) {
+        if (!this._isPlaying || !this.currentAnimation || !this.spriteComponent || this.frameDuration <= 0) { // Use _isPlaying
             return;
         }
 
@@ -101,7 +106,7 @@ export class AnimationComponent extends BaseComponent {
 
         // Update the sprite component's source rect based on the current frame
         // Only update if the animation is still playing (might have stopped in the loop)
-        if (this.isPlaying) {
+        if (this._isPlaying) { // Use _isPlaying
             this.updateSpriteFrame();
         }
     }

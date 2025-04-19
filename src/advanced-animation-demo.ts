@@ -8,9 +8,10 @@ import { GameLoop } from './core/engine/GameLoop.js';
 import { Project, Scene, GameObjectConfig } from './types/project.js';
 import { SettingsManager } from './core/settings/SettingsManager.js';
 import { EventBus } from './core/events/EventBus.js';
-import { AppEvent, InputEvent } from './core/events/EventTypes.js';
+import { AppEvent, InputEvent, GameObjectEvent } from './core/events/EventTypes.js'; // Import GameObjectEvent
 import { AnimationComponent } from './core/components/AnimationComponent.js';
 import { ExplosionCompletionComponent } from './core/components/ExplosionCompletionComponent.js'; // Import the new component
+import { CollisionComponent } from './core/components/CollisionComponent.js'; // Import CollisionComponent
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -120,7 +121,7 @@ async function main() {
             };
 
             // Create the explosion object
-            const explosionObject = objectManager.createObjectFromConfig(explosionConfig);
+            const explosionObject = objectManager.createObject(explosionConfig); // Use createObject
 
             if (explosionObject) {
                 // Play explosion sound
@@ -129,6 +130,51 @@ async function main() {
             } else {
                 console.error(`Failed to create explosion object with config:`, explosionConfig);
             }
+        }
+    });
+
+    // Listener for object destruction (e.g., play explosion sound and create explosion animation)
+    eventBus.subscribe('gameObjectDestroyed', (event) => {
+        const destroyedEvent = event as GameObjectEvent; // Correct type
+        const obj = destroyedEvent.gameObject;
+        const collisionComp = obj.getComponent(CollisionComponent); // Use imported type
+
+        // Play explosion sound and create animation if an enemy or bullet was destroyed
+        if (collisionComp && (collisionComp.group === 'enemy' || collisionComp.group === 'bullet')) {
+            console.log(`EventBus Handler: Playing explosion sound for destroyed ${obj.name} (Group: ${collisionComp.group})`);
+            soundManager.playSound('explosion');
+
+            // --- Create Explosion Animation ---
+            const explosionConfig: GameObjectConfig = {
+                id: `explosion_${Date.now()}_${Math.random().toString(16).slice(2)}`, // Unique ID
+                name: `Explosion for ${obj.name}`,
+                type: 'effect',
+                x: obj.x, // Position at the destroyed object's location
+                y: obj.y,
+                layerId: 'main', // Or an 'effects' layer if you have one
+                components: [
+                    { type: 'SpriteComponent', properties: {
+                        spriteRef: 'explosionSheet/frame1', // Initial frame (AnimationComponent will take over)
+                        anchor: { x: 0.5, y: 0.5 }
+                    }},
+                    { type: 'AnimationComponent', properties: {
+                        defaultAnimation: 'explode', // Matches key in explosion1_def.json
+                        // assetLoader is injected by ObjectManager
+                    }},
+                    // Add component to destroy the explosion object when animation finishes
+                    { type: 'ExplosionCompletionComponent', properties: {
+                        // objectManager is injected by ObjectManager
+                    }}
+                ]
+            };
+            // Use the new createObject method
+            const explosionObject = objectManager.createObject(explosionConfig); // Use createObject
+            if (explosionObject) {
+                console.log(`Created explosion object: ${explosionObject.id}`);
+            } else {
+                console.error(`Failed to create explosion object for ${obj.name}`);
+            }
+            // --- End Explosion Creation ---
         }
     });
 

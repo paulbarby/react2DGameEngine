@@ -9,6 +9,8 @@ import { Project, Scene, GameObjectConfig } from './types/project.js';
 import { PlayerControllerComponent } from './core/components/PlayerControllerComponent.js';
 import { EnemyMovementComponent } from './core/components/EnemyMovementComponent.js';
 import { EventBus } from './core/events/EventBus.js'; // Import EventBus
+import { SoundManager } from './core/sound/SoundManager.js'; // Import SoundManager (needed for ObjectManager)
+import { SettingsManager } from './core/settings/SettingsManager.js'; // Import SettingsManager (needed for SoundManager)
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
@@ -34,12 +36,20 @@ async function main() {
     } catch (e) { updateStatus('Error: Web Audio API not supported.'); return; }
 
     const eventBus = new EventBus(); // Create EventBus instance
+    const settingsManager = new SettingsManager(); // Needed for SoundManager
+    settingsManager.setEventBus(eventBus);
+    await settingsManager.loadSettings();
+
     const assetLoader = new AssetLoader(audioContext);
     const inputManager = new InputManager(canvas, eventBus); // Pass EventBus instance
     const objectManager = new ObjectManager();
-    objectManager.setEventBus(eventBus); // Also set EventBus for ObjectManager if needed
+    objectManager.setAssetLoader(assetLoader); // Set AssetLoader
+    objectManager.setEventBus(eventBus); // Set EventBus
     const sceneManager = new SceneManager();
     const renderer = new Renderer(canvas); // Renderer now handles stars
+    const soundManager = new SoundManager(audioContext, assetLoader, settingsManager); // Create SoundManager
+    objectManager.setSoundManager(soundManager); // Inject SoundManager
+    objectManager.setInputManager(inputManager); // Inject InputManager
 
     // --- Register Custom Components ---
     objectManager.registerComponent('PlayerControllerComponent', PlayerControllerComponent);
@@ -59,7 +69,7 @@ async function main() {
             } },
             { type: 'PlayerControllerComponent', properties: {
                 speed: 250,
-                inputManager: inputManager, // Pass input manager instance
+                // inputManager: inputManager, // Removed: Injected by ObjectManager
                 bounds: { width: canvas.width, height: canvas.height }
             }}
         ]
