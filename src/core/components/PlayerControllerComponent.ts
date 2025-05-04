@@ -1,6 +1,7 @@
 import { BaseComponent } from './BaseComponent.js';
 import { InputManager } from '../input/InputManager.js';
 import { SpriteComponent } from './SpriteComponent.js'; // Needed for bounds checking
+import { info, warn, error, debug } from '../utils/logger.js'; // Import logger functions
 
 interface PlayerControllerProps {
     speed: number;
@@ -18,6 +19,7 @@ export class PlayerControllerComponent extends BaseComponent {
         this.speed = config.speed;
         // Assign the injected inputManager from the config properties
         if (!config.inputManager) {
+            error("PlayerControllerComponent requires 'inputManager' in config properties."); // Use logger
             throw new Error("PlayerControllerComponent requires 'inputManager' in config properties.");
         }
         this.inputManager = config.inputManager;
@@ -27,16 +29,16 @@ export class PlayerControllerComponent extends BaseComponent {
     init(): void {
         // Check if inputManager was successfully assigned
         if (!this.inputManager) {
-             console.error(`PlayerControllerComponent for ${this.gameObject?.name}: InputManager not assigned!`);
+             error(`PlayerControllerComponent for ${this.gameObject?.name}: InputManager not assigned!`); // Use logger
         } else {
-            console.log(`PlayerControllerComponent initialized for ${this.gameObject?.name}`);
+            info(`PlayerControllerComponent initialized for ${this.gameObject?.name}`); // Use logger
         }
     }
 
     update(deltaTime: number): void {
         // --- Add Log ---
         if (!this.inputManager) {
-            console.error(`PlayerControllerComponent (${this.gameObject?.name}): Update called but this.inputManager is missing!`);
+            error(`PlayerControllerComponent (${this.gameObject?.name}): Update called but this.inputManager is missing!`); // Use logger
             return; // Stop update if inputManager is missing
         }
         // --- End Log ---
@@ -72,7 +74,7 @@ export class PlayerControllerComponent extends BaseComponent {
 
         // Log position change only if moved
         if (this.gameObject.x !== oldX || this.gameObject.y !== oldY) {
-            console.log(`PlayerController Pos: (${oldX.toFixed(1)}, ${oldY.toFixed(1)}) -> (${this.gameObject.x.toFixed(1)}, ${this.gameObject.y.toFixed(1)})`);
+            debug(`PlayerController Pos: (${oldX.toFixed(1)}, ${oldY.toFixed(1)}) -> (${this.gameObject.x.toFixed(1)}, ${this.gameObject.y.toFixed(1)})`); // Use logger (debug)
         }
 
         // Bounds checking
@@ -85,6 +87,6 @@ export class PlayerControllerComponent extends BaseComponent {
     }
 
     destroy(): void {
-        console.log(`PlayerControllerComponent destroyed for ${this.gameObject?.name}`);
+        info(`PlayerControllerComponent destroyed for ${this.gameObject?.name}`); // Use logger
     }
 }

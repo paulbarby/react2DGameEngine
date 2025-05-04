@@ -1,3 +1,4 @@
+import { info, warn } from '../utils/logger.js'; // Import logger functions
 const MAX_DELTA_TIME = 1 / 15; // Cap delta time to avoid large jumps (e.g., if tabbed away)
 export class GameLoop {
     constructor(objectManager, renderer, sceneManager, inputManager, assetLoader) {
@@ -14,18 +15,18 @@ export class GameLoop {
     }
     start() {
         if (this.isRunning) {
-            console.warn('GameLoop is already running.');
+            warn('GameLoop is already running.'); // Use logger
             return;
         }
         this.isRunning = true;
         this.lastTime = performance.now();
-        console.log('GameLoop started.');
+        info('GameLoop started.'); // Use logger
         // Start the loop
         this.rafId = requestAnimationFrame(this.loop);
     }
     stop() {
         if (!this.isRunning) {
-            console.warn('GameLoop is not running.');
+            warn('GameLoop is not running.'); // Use logger
             return;
         }
         this.isRunning = false;
@@ -33,7 +34,7 @@ export class GameLoop {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
         }
-        console.log('GameLoop stopped.');
+        info('GameLoop stopped.'); // Use logger
     }
     loop(currentTime) {
         // If stop() was called, isRunning will be false
@@ -45,7 +46,7 @@ export class GameLoop {
         this.lastTime = currentTime;
         // Clamp delta time to prevent large jumps
         if (deltaTime > MAX_DELTA_TIME) {
-            console.warn(`Delta time capped from ${deltaTime.toFixed(4)}s to ${MAX_DELTA_TIME.toFixed(4)}s`);
+            warn(`Delta time capped from ${deltaTime.toFixed(4)}s to ${MAX_DELTA_TIME.toFixed(4)}s`); // Use logger
             deltaTime = MAX_DELTA_TIME;
         }
         // --- Update Phase ---
@@ -63,7 +64,7 @@ export class GameLoop {
         }
         else {
             this.renderer.resize(this.renderer.viewportWidth, this.renderer.viewportHeight); // Effectively clears
-            // console.log("No scene loaded, skipping render.");
+            // debug("No scene loaded, skipping render."); // Use logger (debug)
         }
         // Request the next frame
         this.rafId = requestAnimationFrame(this.loop);
