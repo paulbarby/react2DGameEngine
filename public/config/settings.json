@@ -6,5 +6,8 @@
   },
   "controls": {
     "invertY": false
+  },
+  "debug": {
+    "logLevel": "INFO" // Options: "DEBUG", "INFO", "WARN", "ERROR", "NONE"
   }
 }

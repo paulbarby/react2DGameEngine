@@ -1,5 +1,6 @@
 import { EventBus } from '../events/EventBus.js'; // Import EventBus
 import { createInputEvent } from '../events/EventTypes.js'; // Import event creator
+import { info, debug, warn, error } from '../utils/logger.js'; // Import logger functions
 
 export class InputManager {
     private keysDown: Set<string> = new Set();
@@ -33,7 +34,7 @@ export class InputManager {
         this.targetElement.addEventListener('mousedown', this.handleMouseDown);
         this.targetElement.addEventListener('mouseup', this.handleMouseUp);
         // Log confirmation
-        console.log(`InputManager: Added listeners to ${this.targetElement === window ? 'window' : (this.targetElement as HTMLElement).id || 'HTMLElement'}`);
+        info(`InputManager: Added listeners to ${this.targetElement === window ? 'window' : (this.targetElement as HTMLElement).id || 'HTMLElement'}`); // Use logger
         // Consider 'contextmenu' to prevent right-click menu if needed
         // this.targetElement.addEventListener('contextmenu', e => e.preventDefault());
     }
@@ -57,13 +58,13 @@ export class InputManager {
         const isInput = targetTagName === 'INPUT' || targetTagName === 'TEXTAREA' || targetTagName === 'SELECT';
 
         if (!isInput && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
-            console.log(`InputManager: Preventing default for ${code}`); // Log prevention
+            debug(`InputManager: Preventing default for ${code}`); // Use logger (debug)
             keyboardEvent.preventDefault();
         }
 
         // Log only if it's a new key press
         if (!this.keysDown.has(code)) {
-            console.log(`InputManager: Key down - ${code}`); // Added log
+            debug(`InputManager: Key down - ${code}`); // Use logger (debug)
             // this.keysPressedThisFrame.add(code); // Track press start
             // Publish event
             this.eventBus.publish(createInputEvent('keyDown', { code, key, ctrlKey, shiftKey, altKey }));
@@ -76,7 +77,7 @@ export class InputManager {
         const { code, key, ctrlKey, shiftKey, altKey } = keyboardEvent;
 
         if (this.keysDown.has(code)) {
-            console.log(`InputManager: Key up - ${code}`); // Added log
+            debug(`InputManager: Key up - ${code}`); // Use logger (debug)
             // this.keysReleasedThisFrame.add(code); // Track release
             // Publish event
             this.eventBus.publish(createInputEvent('keyUp', { code, key, ctrlKey, shiftKey, altKey }));
@@ -95,7 +96,7 @@ export class InputManager {
         this.mousePosition.y = mouseEvent.clientY - rect.top;
         // Publish event
         this.eventBus.publish(createInputEvent('mouseMove', { x: this.mousePosition.x, y: this.mousePosition.y }));
-        // console.log(`Mouse move: ${this.mousePosition.x}, ${this.mousePosition.y}`);
+        // debug(`Mouse move: ${this.mousePosition.x}, ${this.mousePosition.y}`); // Use logger (debug)
     }
 
     private handleMouseDown(event: Event): void {
@@ -112,7 +113,7 @@ export class InputManager {
         this.mouseButtonsDown.add(button);
         // Publish event
         this.eventBus.publish(createInputEvent('mouseDown', { x, y, button }));
-        // console.log(`Mouse down: button ${mouseEvent.button}`);
+        debug(`Mouse down: button ${mouseEvent.button}`); // Use logger (debug)
     }
 
     private handleMouseUp(event: Event): void {
@@ -129,7 +130,7 @@ export class InputManager {
         this.mouseButtonsDown.delete(button);
         // Publish event
         this.eventBus.publish(createInputEvent('mouseUp', { x, y, button }));
-        // console.log(`Mouse up: button ${mouseEvent.button}`);
+        debug(`Mouse up: button ${mouseEvent.button}`); // Use logger (debug)
     }
 
     // Called once per frame by the GameLoop
@@ -169,6 +170,6 @@ export class InputManager {
         this.keysDown.clear();
         this.mouseButtonsDown.clear();
         // No need to clear eventBus listeners here, let consumers manage subscriptions
-        console.log('InputManager destroyed.');
+        info('InputManager destroyed.'); // Use logger
     }
 }

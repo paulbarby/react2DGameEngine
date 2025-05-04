@@ -11,18 +11,19 @@ import { EnemyMovementComponent } from './core/components/EnemyMovementComponent
 import { EventBus } from './core/events/EventBus.js'; // Import EventBus
 import { SoundManager } from './core/sound/SoundManager.js'; // Import SoundManager (needed for ObjectManager)
 import { SettingsManager } from './core/settings/SettingsManager.js'; // Import SettingsManager (needed for SoundManager)
+import { initializeLogger, info, warn, error } from './core/utils/logger.js'; // Import logger
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status');
 
 function updateStatus(message: string) {
     if (statusEl) statusEl.textContent = message;
-    console.log(message);
+    info(message); // Use logger
 }
 
 async function main() {
     if (!canvas) {
-        updateStatus('Error: Canvas element not found!');
+        updateStatus('Error: Canvas element not found!'); // updateStatus uses logger
         return;
     }
     updateStatus('Initializing...');
@@ -31,7 +32,7 @@ async function main() {
     let audioContext: AudioContext;
     try {
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const resumeContext = () => { /* ... resume logic ... */ if (audioContext.state === 'suspended') audioContext.resume().catch(e => console.error(e)); document.removeEventListener('click', resumeContext); document.removeEventListener('keydown', resumeContext); };
+        const resumeContext = () => { /* ... resume logic ... */ if (audioContext.state === 'suspended') audioContext.resume().catch(e => error(e)); document.removeEventListener('click', resumeContext); document.removeEventListener('keydown', resumeContext); }; // Use logger for error
         document.addEventListener('click', resumeContext); document.addEventListener('keydown', resumeContext);
     } catch (e) { updateStatus('Error: Web Audio API not supported.'); return; }
 
@@ -39,6 +40,9 @@ async function main() {
     const settingsManager = new SettingsManager(); // Needed for SoundManager
     settingsManager.setEventBus(eventBus);
     await settingsManager.loadSettings();
+
+    // --- Initialize Logger ---
+    initializeLogger(settingsManager); // Initialize with loaded settings
 
     const assetLoader = new AssetLoader(audioContext);
     const inputManager = new InputManager(canvas, eventBus); // Pass EventBus instance
@@ -124,7 +128,7 @@ async function main() {
         const manifest = await assetLoader.loadManifest(manifestUrl);
         await assetLoader.loadAllAssets(manifest);
         updateStatus('Assets loaded.');
-    } catch (error: any) { updateStatus(`Error loading assets: ${error.message}`); return; }
+    } catch (err: any) { updateStatus(`Error loading assets: ${err.message}`); return; } // Use logger via updateStatus
 
     // --- Setup Scene ---
     sceneManager.loadProject(demoProject);
@@ -143,4 +147,4 @@ async function main() {
     window.addEventListener('beforeunload', () => { gameLoop.stop(); inputManager.destroy(); });
 }
 
-main().catch(err => { updateStatus(`Unhandled error: ${err.message}`); console.error(err); });
+main().catch(err => { updateStatus(`Unhandled error: ${err.message}`); error(err); }); // Use logger for error object

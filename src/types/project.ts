@@ -52,6 +52,8 @@ export interface Scene {
     objects: GameObjectConfig[];
 }
 
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'NONE';
+
 export interface Project {
     startScene: string; // Key of the starting scene
     scenes: { [name: string]: Scene };

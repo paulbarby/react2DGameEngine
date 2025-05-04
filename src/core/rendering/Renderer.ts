@@ -3,6 +3,7 @@ import { Scene, Layer, SpriteDefinition } from '../../types/project.js'; // Adde
 import { ObjectManager } from '../objects/ObjectManager.js'; // Added .js
 import { AssetLoader } from '../assets/AssetLoader.js'; // Added .js
 import { SpriteComponent } from '../components/SpriteComponent.js'; // Added .js
+import { debug, info, warn, error } from '../utils/logger.js'; // Import logger functions
 
 export class Renderer {
     private ctx: CanvasRenderingContext2D;
@@ -15,6 +16,8 @@ export class Renderer {
     constructor(canvas: HTMLCanvasElement) {
         const context = canvas.getContext('2d');
         if (!context) {
+            // No logger available yet, use console.error
+            console.error('Failed to get 2D rendering context');
             throw new Error('Failed to get 2D rendering context');
         }
         this.ctx = context;
@@ -83,7 +86,7 @@ export class Renderer {
             // this.ctx.translate(layer.scrollOffsetX || 0, layer.scrollOffsetY || 0);
 
             const objects = objectManager.getObjectsByLayer(layer.id);
-            // console.log(`Layer ${layer.name}: Processing ${objects.length} objects`); // Log object count per layer
+            // debug(`Layer ${layer.name}: Processing ${objects.length} objects`); // Use logger (debug)
 
             // Loop through objects in the layer
             for (const object of objects) {
@@ -112,7 +115,8 @@ export class Renderer {
         // --- Add Player Specific Log ---
         if (object.type === 'player') {
             const spriteComp = object.getComponent(SpriteComponent);
-            console.log(`Renderer.drawObject: PLAYER DETECTED - ID: ${object.id}, Pos: (${object.x.toFixed(1)}, ${object.y.toFixed(1)}), Rot: ${object.rotation.toFixed(2)}, Scale: (${object.scaleX}, ${object.scaleY}), Sprite: ${spriteComp ? `Ref='${spriteComp.spriteRef}', W=${spriteComp.width}, H=${spriteComp.height}, Anchor=(${spriteComp.anchor.x},${spriteComp.anchor.y}), Offset=(${spriteComp.offsetX.toFixed(1)},${spriteComp.offsetY.toFixed(1)})` : 'No SpriteComp'}`);
+            // Use debug level for frequent logs
+            debug(`Renderer.drawObject: PLAYER DETECTED - ID: ${object.id}, Pos: (${object.x.toFixed(1)}, ${object.y.toFixed(1)}), Rot: ${object.rotation.toFixed(2)}, Scale: (${object.scaleX}, ${object.scaleY}), Sprite: ${spriteComp ? `Ref='${spriteComp.spriteRef}', W=${spriteComp.width}, H=${spriteComp.height}, Anchor=(${spriteComp.anchor.x},${spriteComp.anchor.y}), Offset=(${spriteComp.offsetX.toFixed(1)},${spriteComp.offsetY.toFixed(1)})` : 'No SpriteComp'}`);
         }
         // --- End Player Specific Log ---
 
@@ -128,7 +132,7 @@ export class Renderer {
         if (spriteComp) {
             // <<< ADD LOGGING FOR BULLETS >>>
             if (object.type === 'bullet') {
-                console.log(`Drawing bullet ${object.id}: spriteRef='${spriteComp.spriteRef}', sheet='${spriteComp.currentSheetKey}', sprite='${spriteComp.currentSpriteName}', imageKey='${spriteComp.imageKey}'`);
+                debug(`Drawing bullet ${object.id}: spriteRef='${spriteComp.spriteRef}', sheet='${spriteComp.currentSheetKey}', sprite='${spriteComp.currentSpriteName}', imageKey='${spriteComp.imageKey}'`); // Use logger (debug)
             }
             // <<< END LOGGING FOR BULLETS >>>
 
@@ -157,10 +161,10 @@ export class Renderer {
                             spriteComp.imageKey = definition.image; // Store image key in component
                             updateComponentSourceRect = true; // Mark for update
                         } else {
-                            console.warn(`Sprite ${spriteComp.currentSpriteName} not found in sheet ${spriteComp.currentSheetKey} for ${object.name}`);
+                            warn(`Sprite ${spriteComp.currentSpriteName} not found in sheet ${spriteComp.currentSheetKey} for ${object.name}`); // Use logger
                         }
                     } else {
-                         console.warn(`Sprite sheet definition ${spriteComp.currentSheetKey} not loaded for ${object.name}`);
+                         warn(`Sprite sheet definition ${spriteComp.currentSheetKey} not loaded for ${object.name}`); // Use logger
                     }
                 }
                 // Get image using the key stored in the component
@@ -184,7 +188,7 @@ export class Renderer {
              if (object.type === 'bullet') {
                  const definition = spriteComp.currentSheetKey ? assetLoader.getSpriteSheetDefinition(spriteComp.currentSheetKey) : undefined;
                  const spriteData = definition && spriteComp.currentSpriteName ? definition.sprites[spriteComp.currentSpriteName] : undefined;
-                 console.log(`  -> Bullet ${object.id}: Image found=${!!image}, Def found=${!!definition}, SpriteData found=${!!spriteData}, Rect=(${sx},${sy},${sw},${sh})`);
+                 debug(`  -> Bullet ${object.id}: Image found=${!!image}, Def found=${!!definition}, SpriteData found=${!!spriteData}, Rect=(${sx},${sy},${sw},${sh})`); // Use logger (debug)
              }
             // <<< END LOGGING FOR BULLETS (IMAGE/RECT) >>>
 
@@ -217,19 +221,19 @@ export class Renderer {
                  if (!spriteComp.imageKey && !spriteComp.currentSheetKey) {
                      this.ctx.fillStyle = 'magenta';
                      this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
-                     console.warn(`SpriteComponent on ${object.name} has invalid spriteRef: ${spriteComp.spriteRef}`);
+                     warn(`SpriteComponent on ${object.name} has invalid spriteRef: ${spriteComp.spriteRef}`); // Use logger
                  } else if (!image) {
                      this.ctx.fillStyle = 'red';
                      this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
-                     console.warn(`Image not found for ${object.name} (key: ${spriteComp.imageKey || 'unknown'})`);
+                     warn(`Image not found for ${object.name} (key: ${spriteComp.imageKey || 'unknown'})`); // Use logger
                  } else {
                      this.ctx.fillStyle = 'orange';
                      this.ctx.fillRect(dx, dy, dw || 10, dh || 10);
-                     console.warn(`Source dimensions invalid for ${object.name} (sw=${sw}, sh=${sh})`);
+                     warn(`Source dimensions invalid for ${object.name} (sw=${sw}, sh=${sh})`); // Use logger
                  }
                  // <<< ADD LOGGING FOR BULLETS (PLACEHOLDER) >>>
                  if (object.type === 'bullet') {
-                    console.error(`  -> Bullet ${object.id}: Drawing placeholder! Reason: ${!image ? 'No Image' : (sw <= 0 || sh <= 0 ? 'Invalid Rect' : 'Unknown')}`);
+                    error(`  -> Bullet ${object.id}: Drawing placeholder! Reason: ${!image ? 'No Image' : (sw <= 0 || sh <= 0 ? 'Invalid Rect' : 'Unknown')}`); // Use logger
                  }
                  // <<< END LOGGING FOR BULLETS (PLACEHOLDER) >>>
             }

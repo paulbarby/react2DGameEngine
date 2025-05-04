@@ -1,3 +1,4 @@
+import { info, warn, error, debug } from '../utils/logger.js'; // Import logger functions
 export class SoundManager {
     constructor(audioContext, assetLoader, settingsManager // Inject SettingsManager
     ) {
@@ -17,7 +18,7 @@ export class SoundManager {
         this.masterGainNode.gain.value = initialMaster;
         this.musicGainNode.gain.value = initialMusic;
         this.sfxGainNode.gain.value = initialSfx;
-        console.log(`SoundManager Initial Gains SET TO: Master=${initialMaster.toFixed(2)}, Music=${initialMusic.toFixed(2)}, SFX=${initialSfx.toFixed(2)}`);
+        info(`SoundManager Initial Gains SET TO: Master=${initialMaster.toFixed(2)}, Music=${initialMusic.toFixed(2)}, SFX=${initialSfx.toFixed(2)}`); // Use logger
         // Connect the nodes: Source -> TypeGain -> MasterGain -> Destination
         this.musicGainNode.connect(this.masterGainNode);
         this.sfxGainNode.connect(this.masterGainNode);
@@ -31,25 +32,25 @@ export class SoundManager {
     // --- Volume Update Methods ---
     updateMasterVolume(value) {
         const targetValue = Math.max(0.0001, value); // Target value (avoid 0 for exponential ramp)
-        console.log(`SoundManager: Updating Master Gain from ${this.masterGainNode.gain.value.toFixed(3)} to ${targetValue.toFixed(3)}`);
+        debug(`SoundManager: Updating Master Gain from ${this.masterGainNode.gain.value.toFixed(3)} to ${targetValue.toFixed(3)}`); // Use logger (debug)
         this.masterGainNode.gain.exponentialRampToValueAtTime(targetValue, this.audioContext.currentTime + 0.05 // Ramp duration (e.g., 50ms)
         );
     }
     updateMusicVolume(multiplier) {
         const targetValue = Math.max(0.0001, multiplier);
-        console.log(`SoundManager: Updating Music Gain Multiplier from ${this.musicGainNode.gain.value.toFixed(3)} to ${targetValue.toFixed(3)}`);
+        debug(`SoundManager: Updating Music Gain Multiplier from ${this.musicGainNode.gain.value.toFixed(3)} to ${targetValue.toFixed(3)}`); // Use logger (debug)
         this.musicGainNode.gain.exponentialRampToValueAtTime(targetValue, this.audioContext.currentTime + 0.05);
     }
     updateSfxVolume(multiplier) {
         const targetValue = Math.max(0.0001, multiplier);
-        console.log(`SoundManager: Updating SFX Gain Multiplier from ${this.sfxGainNode.gain.value.toFixed(3)} to ${targetValue.toFixed(3)}`);
+        debug(`SoundManager: Updating SFX Gain Multiplier from ${this.sfxGainNode.gain.value.toFixed(3)} to ${targetValue.toFixed(3)}`); // Use logger (debug)
         this.sfxGainNode.gain.exponentialRampToValueAtTime(targetValue, this.audioContext.currentTime + 0.05);
     }
     // --- Play Methods ---
     playSound(key, loop = false) {
         // Ensure context is running
         if (this.audioContext.state === 'suspended') {
-            this.audioContext.resume().catch(e => console.error("AudioContext resume failed:", e));
+            this.audioContext.resume().catch(e => error("AudioContext resume failed:", e)); // Use logger
         }
         const buffer = this.assetLoader.getAsset(key);
         if (buffer instanceof AudioBuffer) {
@@ -59,21 +60,21 @@ export class SoundManager {
             // Connect to the SFX gain node
             source.connect(this.sfxGainNode);
             source.start(0);
-            console.log(`Playing SFX: ${key}`);
+            info(`Playing SFX: ${key}`); // Use logger
             return source;
         }
         else {
-            console.warn(`Sound asset not found or not an AudioBuffer: ${key}`);
+            warn(`Sound asset not found or not an AudioBuffer: ${key}`); // Use logger
             return null;
         }
     }
     playMusic(key) {
         // Ensure context is running
         if (this.audioContext.state === 'suspended') {
-            console.log("AudioContext is suspended, attempting resume...");
-            this.audioContext.resume().catch(e => console.error("AudioContext resume failed:", e));
+            info("AudioContext is suspended, attempting resume..."); // Use logger
+            this.audioContext.resume().catch(e => error("AudioContext resume failed:", e)); // Use logger
         }
-        console.log(`Attempting to play music: ${key}. AudioContext state: ${this.audioContext.state}`);
+        info(`Attempting to play music: ${key}. AudioContext state: ${this.audioContext.state}`); // Use logger
         this.stopMusic(); // Stop any currently playing music
         const buffer = this.assetLoader.getAsset(key);
         if (buffer instanceof AudioBuffer) {
@@ -82,17 +83,17 @@ export class SoundManager {
             this.currentMusicSource.loop = true;
             // Connect to the Music gain node
             this.currentMusicSource.connect(this.musicGainNode);
-            console.log(`SoundManager: Music source created and connected to musicGainNode (current gain: ${this.musicGainNode.gain.value.toFixed(3)}). Master gain: ${this.masterGainNode.gain.value.toFixed(3)}`);
+            debug(`SoundManager: Music source created and connected to musicGainNode (current gain: ${this.musicGainNode.gain.value.toFixed(3)}). Master gain: ${this.masterGainNode.gain.value.toFixed(3)}`); // Use logger (debug)
             try {
                 this.currentMusicSource.start(0);
-                console.log(`SoundManager: Music '${key}' started.`);
+                info(`SoundManager: Music '${key}' started.`); // Use logger
             }
-            catch (error) {
-                console.error(`SoundManager: Error starting music source for '${key}':`, error);
+            catch (err) { // Use different variable name
+                error(`SoundManager: Error starting music source for '${key}':`, err); // Use logger
             }
         }
         else {
-            console.warn(`Music asset not found or not an AudioBuffer: ${key}`);
+            warn(`Music asset not found or not an AudioBuffer: ${key}`); // Use logger
         }
     }
     stopMusic() {
@@ -105,14 +106,14 @@ export class SoundManager {
             }
             this.currentMusicSource.disconnect(); // Disconnect node
             this.currentMusicSource = null;
-            console.log('Music stopped.');
+            info('Music stopped.'); // Use logger
         }
     }
     // Optional: Method to stop all sounds (e.g., on pause)
     stopAllSounds() {
         // This is complex as you need to track all active SFX sources.
         // A simpler approach for pause is to ramp masterGainNode down to 0.
-        console.warn("stopAllSounds() not fully implemented - consider muting master gain instead.");
+        warn("stopAllSounds() not fully implemented - consider muting master gain instead."); // Use logger
         this.stopMusic();
     }
     // Call this on cleanup
@@ -125,6 +126,6 @@ export class SoundManager {
         this.masterGainNode.disconnect();
         this.musicGainNode.disconnect();
         this.sfxGainNode.disconnect();
-        console.log("SoundManager destroyed.");
+        info("SoundManager destroyed."); // Use logger
     }
 }

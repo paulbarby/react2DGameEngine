@@ -2,6 +2,7 @@ import { BaseComponent } from './BaseComponent.js';
 import { SpriteComponent } from './SpriteComponent.js';
 import { AssetLoader } from '../assets/AssetLoader.js'; // Needed to get definitions
 import { AnimationDefinition, SpriteDefinition } from '../../types/project.js';
+import { info, warn, error, debug } from '../utils/logger.js'; // Import logger functions
 
 interface AnimationComponentProps {
     assetLoader: AssetLoader;
@@ -32,7 +33,7 @@ export class AnimationComponent extends BaseComponent {
     init(): void {
         this.spriteComponent = this.gameObject?.getComponent(SpriteComponent) ?? null;
         if (!this.spriteComponent) {
-            console.error(`AnimationComponent on ${this.gameObject?.name} requires a SpriteComponent.`);
+            error(`AnimationComponent on ${this.gameObject?.name} requires a SpriteComponent.`); // Use logger
             return;
         }
         if (this.currentAnimationName) {
@@ -42,13 +43,13 @@ export class AnimationComponent extends BaseComponent {
 
     play(animationName: string): void {
         if (!this.spriteComponent || !this.spriteComponent.currentSheetKey) {
-            console.warn(`Cannot play animation "${animationName}" on ${this.gameObject?.name}: SpriteComponent or sheet key missing.`);
+            warn(`Cannot play animation "${animationName}" on ${this.gameObject?.name}: SpriteComponent or sheet key missing.`); // Use logger
             return;
         }
 
         const definition = this.assetLoader.getSpriteSheetDefinition(this.spriteComponent.currentSheetKey);
         if (!definition || !definition.animations || !definition.animations[animationName]) {
-            console.warn(`Animation "${animationName}" not found in sheet "${this.spriteComponent.currentSheetKey}" for ${this.gameObject?.name}.`);
+            warn(`Animation "${animationName}" not found in sheet "${this.spriteComponent.currentSheetKey}" for ${this.gameObject?.name}.`); // Use logger
             this.stop();
             return;
         }
@@ -67,17 +68,19 @@ export class AnimationComponent extends BaseComponent {
         this.frameDuration = this.currentAnimation.duration / this.currentAnimation.frames.length;
         this._isPlaying = true; // Use _isPlaying
 
-        console.log(`Playing animation "${animationName}" on ${this.gameObject?.name}`);
+        info(`Playing animation "${animationName}" on ${this.gameObject?.name}`); // Use logger
         this.updateSpriteFrame(); // Set initial frame
     }
 
     stop(): void {
+        if (this._isPlaying) { // Only log stop if it was playing
+            info(`Stopped animation on ${this.gameObject?.name}`); // Use logger
+        }
         this._isPlaying = false; // Use _isPlaying
         this.currentAnimation = null;
         this.currentAnimationName = null;
         this.currentFrameIndex = 0;
         this.timeAccumulator = 0;
-        console.log(`Stopped animation on ${this.gameObject?.name}`);
     }
 
     update(deltaTime: number): void {
@@ -118,7 +121,7 @@ export class AnimationComponent extends BaseComponent {
         const definition = this.assetLoader.getSpriteSheetDefinition(this.spriteComponent.currentSheetKey);
 
         if (!definition || !definition.sprites[frameName]) {
-            console.error(`Sprite frame "${frameName}" not found in definition "${this.spriteComponent.currentSheetKey}" during animation.`);
+            error(`Sprite frame "${frameName}" not found in definition "${this.spriteComponent.currentSheetKey}" during animation.`); // Use logger
             this.stop();
             return;
         }
@@ -144,7 +147,7 @@ export class AnimationComponent extends BaseComponent {
         this.spriteComponent.spriteRef = `${this.spriteComponent.currentSheetKey}/${frameName}`;
         this.spriteComponent.currentSpriteName = frameName;
 
-        // console.log(`Anim ${this.gameObject?.name}: Frame ${this.currentFrameIndex} (${frameName})`);
+        // debug(`Anim ${this.gameObject?.name}: Frame ${this.currentFrameIndex} (${frameName})`); // Use logger (debug)
     }
 
 

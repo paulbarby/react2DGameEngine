@@ -3,6 +3,7 @@ import * as Components from '../components/index.js'; // Import all components
 import { createGameObjectEvent } from '../events/EventTypes.js';
 import { StrategyFactory } from '../behaviors/StrategyFactory.js'; // Import StrategyFactory
 import { BehaviorStrategyComponent } from '../components/BehaviorStrategyComponent.js'; // Import component type
+import { info, warn, error, debug } from '../utils/logger.js'; // Import logger functions
 export class ObjectManager {
     constructor() {
         this.gameObjects = new Map();
@@ -44,18 +45,18 @@ export class ObjectManager {
     }
     registerComponent(type, constructor) {
         if (this.componentRegistry.has(type)) {
-            console.warn(`ObjectManager: Overwriting component registration for type '${type}'.`);
+            warn(`ObjectManager: Overwriting component registration for type '${type}'.`); // Use logger
         }
         this.componentRegistry.set(type, constructor);
-        console.log(`ObjectManager: Registered component type '${type}'.`);
+        info(`ObjectManager: Registered component type '${type}'.`); // Use logger
     }
     createObjectsForScene(scene) {
         this.clearAllObjects();
-        console.log(`ObjectManager: Creating objects for scene '${scene.name}'...`);
+        info(`ObjectManager: Creating objects for scene '${scene.name}'...`); // Use logger
         for (const config of scene.objects) {
             this.createObject(config); // Use the new createObject method
         }
-        console.log(`ObjectManager: Finished creating ${scene.objects.length} objects.`);
+        info(`ObjectManager: Finished creating ${scene.objects.length} objects.`); // Use logger
     }
     /**
      * Creates a single GameObject from configuration, adds it to the manager,
@@ -66,7 +67,7 @@ export class ObjectManager {
     createObject(config) {
         var _a;
         try {
-            console.log(`Creating object: ${config.name} (ID: ${config.id})`);
+            info(`Creating object: ${config.name} (ID: ${config.id})`); // Use logger
             const gameObject = new GameObject(config);
             // Add to main map
             this.gameObjects.set(gameObject.id, gameObject);
@@ -105,23 +106,23 @@ export class ObjectManager {
                     // --- Player Controller Component Handling ---
                     if (componentConfig.type === 'PlayerControllerComponent') {
                         // <<< START DIAGNOSTIC LOGGING >>>
-                        console.log(`ObjectManager: Injecting dependencies for PlayerControllerComponent on ${config.name}.`);
-                        console.log(`  -> Checking this.coreDependencies.inputManager:`, this.coreDependencies.inputManager ? 'EXISTS' : 'MISSING');
+                        debug(`ObjectManager: Injecting dependencies for PlayerControllerComponent on ${config.name}.`); // Use logger
+                        debug(`  -> Checking this.coreDependencies.inputManager:`, this.coreDependencies.inputManager ? 'EXISTS' : 'MISSING'); // Use logger
                         // <<< END DIAGNOSTIC LOGGING >>>
                         props.inputManager = this.coreDependencies.inputManager; // Inject InputManager
                         // <<< START DIAGNOSTIC LOGGING >>>
-                        console.log(`  -> Props object after injection:`, props);
+                        debug(`  -> Props object after injection:`, props); // Use logger
                         // <<< END DIAGNOSTIC LOGGING >>>
                     }
                     // --- Explosion Completion Component Handling ---
                     if (componentConfig.type === 'ExplosionCompletionComponent') {
                         // <<< START DIAGNOSTIC LOGGING >>>
-                        console.log(`ObjectManager: Injecting dependencies for ExplosionCompletionComponent on ${config.name}.`);
-                        console.log(`  -> Checking this.coreDependencies.objectManager:`, this.coreDependencies.objectManager ? 'EXISTS' : 'MISSING');
+                        debug(`ObjectManager: Injecting dependencies for ExplosionCompletionComponent on ${config.name}.`); // Use logger
+                        debug(`  -> Checking this.coreDependencies.objectManager:`, this.coreDependencies.objectManager ? 'EXISTS' : 'MISSING'); // Use logger
                         // <<< END DIAGNOSTIC LOGGING >>>
                         props.objectManager = this.coreDependencies.objectManager;
                         // <<< START DIAGNOSTIC LOGGING >>>
-                        console.log(`  -> Props object after injection:`, props);
+                        debug(`  -> Props object after injection:`, props); // Use logger
                         // <<< END DIAGNOSTIC LOGGING >>>
                     }
                     // --- End Component Handling ---
@@ -132,10 +133,10 @@ export class ObjectManager {
                     }
                     // --- End Inject StrategyFactory ---
                     gameObject.addComponent(componentInstance); // This calls component.init()
-                    console.log(`  Added component: ${componentConfig.type}`);
+                    debug(`  Added component: ${componentConfig.type}`); // Use logger (debug level)
                 }
                 else {
-                    console.error(`Component type "${componentConfig.type}" not registered for object ${config.name}.`);
+                    error(`Component type "${componentConfig.type}" not registered for object ${config.name}.`); // Use logger
                     // Optionally remove the partially created object if a component fails
                     // this.destroyObject(gameObject.id);
                     // return null;
@@ -147,8 +148,8 @@ export class ObjectManager {
             }
             return gameObject; // Return the created object
         }
-        catch (error) {
-            console.error(`Error creating object ${config.name} (ID: ${config.id}):`, error);
+        catch (err) { // Use different variable name
+            error(`Error creating object ${config.name} (ID: ${config.id}):`, err); // Use logger
             // Clean up if object was partially added
             if (this.gameObjects.has(config.id)) {
                 this.destroyObject(config.id);
@@ -179,7 +180,7 @@ export class ObjectManager {
     destroyObject(id) {
         const gameObject = this.gameObjects.get(id);
         if (gameObject) {
-            console.log(`ObjectManager: Destroying object ${gameObject.name} (ID: ${id})`);
+            info(`ObjectManager: Destroying object ${gameObject.name} (ID: ${id})`); // Use logger
             // Publish event BEFORE actual destruction
             if (this.eventBus) {
                 this.eventBus.publish(createGameObjectEvent('gameObjectDestroyed', gameObject));
@@ -199,11 +200,11 @@ export class ObjectManager {
             this.gameObjects.delete(id);
         }
         else {
-            console.warn(`ObjectManager: Attempted to destroy non-existent object with ID: ${id}`);
+            warn(`ObjectManager: Attempted to destroy non-existent object with ID: ${id}`); // Use logger
         }
     }
     clearAllObjects() {
-        console.log(`ObjectManager: Clearing all ${this.gameObjects.size} objects.`);
+        info(`ObjectManager: Clearing all ${this.gameObjects.size} objects.`); // Use logger
         // Create a copy of IDs to avoid issues while iterating and deleting
         const objectIds = Array.from(this.gameObjects.keys());
         for (const id of objectIds) {
