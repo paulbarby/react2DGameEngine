@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Animation Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>Advanced Animation Guide</h1>
+        <p><a href="/advanced-animation-demo">&laquo; Back to the Advanced Animation Demo</a></p>
+
+        <h2>1. Understanding Advanced Animations</h2>
+        <p>
+            While looping animations are great for continuous states like walking or idling (covered in the <a href="/how-to/advanced-sprites-guide.html">Advanced Sprite Guide</a>), many game actions involve animations that play once and then stop, often triggering other events. This guide covers non-looping animations, controlling playback, and reacting to animation events.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To implement finite animations for effects (explosions, attacks, jumps), manage animation lifecycles, and synchronize game logic with animation state.</li>
+            <li><strong>Role in Engine:</strong> The <code>AnimationComponent</code> remains central, driving frame changes in the <code>SpriteComponent</code> based on <code>AnimationDefinition</code>s. For advanced usage, it potentially interacts heavily with the <code>EventBus</code>, publishing events like <code>animationEnded</code>. Other components or systems subscribe to these events to trigger subsequent actions (like object destruction or state changes).</li>
+            <li><strong>Core Concepts:</strong>
+                <ul>
+                    <li><strong><code>AnimationComponent</code>:</strong> Manages playback. Key methods likely include `play(animationName)`, `stop()`. May publish events.</li>
+                    <li><strong><code>AnimationDefinition</code>:</strong> Defined in `_def.json`. The `loop: boolean` property determines if the animation repeats.</li>
+                    <li><strong><code>SpriteComponent</code>:</strong> Displays the current frame set by the `AnimationComponent`.</li>
+                    <li><strong><code>EventBus</code>:</strong> The likely mechanism for broadcasting animation lifecycle events.</li>
+                    <li><strong>Animation Events (Conceptual):</strong>
+                        <ul>
+                            <li><code>animationStarted</code>: Fired when `play()` is called or the default animation begins.</li>
+                            <li><code>animationEnded</code>: Fired when a non-looping animation reaches its last frame. Crucial for cleanup and state transitions.</li>
+                            <li><code>animationLooped</code>: Fired when a looping animation completes a cycle.</li>
+                            <li><code>animationFrameReached(frameIndex)</code> / <code>animationEventTriggered(eventName)</code>: More advanced events potentially fired at specific frames, useful for synchronizing actions like damage application. (May not be in base implementation).</li>
+                        </ul>
+                    </li>
+                    <li><strong>Programmatic Control:</strong> Using methods like `play()` and `stop()` from other components (e.g., controllers, state machines) to dynamically change the active animation.</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Essential for visual effects, character actions (attacks, jumps, deaths), UI feedback animations, and creating responsive, dynamic game worlds.</li>
+        </ul>
+
+        <h2>2. Tutorial: Implementing Advanced Animations</h2>
+        <p>This tutorial focuses on playing non-looping animations and handling their completion, likely demonstrated in the <code>advanced-animation-demo.ts</code>.</p>
+
+        <h3>Step 2.1: Defining Non-Looping Animations</h3>
+        <p>In your sprite sheet definition (`_def.json`), set `loop: false` for animations that should play only once.</p>
+        <pre><code class="language-json">// Example: public/assets/defs/explosion_def.json
+{
+  "image": "explosion1", // Image key from manifest.json
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "sprites": {
+    "exp1": { "x": 0, "y": 0 },
+    "exp2": { "x": 32, "y": 0 },
+    "exp3": { "x": 64, "y": 0 },
+    "exp4": { "x": 96, "y": 0 },
+    "exp5": { "x": 128, "y": 0 }
+  },
+  "animations": {
+    "explode": {
+      "frames": ["exp1", "exp2", "exp3", "exp4", "exp5"],
+      "duration": 0.4, // Total duration for all 5 frames
+      "loop": false    // Play only once
+    }
+  }
+}</code></pre>
+        <p>Remember to add the image (`explosion1`) and the definition (`explosionSheet`) to your `manifest.json`.</p>
+
+        <h3>Step 2.2: Triggering Animations Programmatically</h3>
+        <p>Initiate animations from code, often when creating an effect or changing an object's state.</p>
+        <pre><code class="language-typescript">// Example: Spawning an explosion object on click (inside main demo or a component)
+// Assuming objectManager is available
+
+function spawnExplosion(x: number, y: number) {
+    const explosionConfig: GameObjectConfig = {
+        id: `explosion_${Date.now()}`, name: 'Explosion', type: 'effect',
+        x: x, y: y, layerId: 'effects', // Use an appropriate layer
+        components: [
+            { type: 'SpriteComponent', properties: {
+                spriteRef: 'explosionSheet/exp1', // Start with the first frame
+                anchor: { x: 0.5, y: 0.5 }
+            }},
+            { type: 'AnimationComponent', properties: {
+                // assetLoader injected by ObjectManager
+                defaultAnimation: 'explode' // Automatically play 'explode' on creation
+            }},
+            // We need a way to clean this up after the animation! See Step 2.3
+            { type: 'DestroyAfterAnimationComponent', properties: { animationName: 'explode' }} // Hypothetical component
+        ]
+    };
+    objectManager.createObject(explosionConfig);
+}
+
+// Example event listener for clicks
+canvas.addEventListener('click', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+    spawnExplosion(clickX, clickY);
+});
+</code></pre>
+
+        <h3>Step 2.3: Handling Animation Completion (Event-Based)</h3>
+        <p>To clean up temporary effects or change state after an animation, listen for its completion. We assume `AnimationComponent` publishes an `animationEnded` event.</p>
+
+        <p>**1. Define the Event (Conceptual - in `EventTypes.ts`)**</p>
+        <pre><code class="language-typescript">// filepath: src/core/events/EventTypes.ts
+// ... other event types ...
+
+export interface AnimationEvent extends BaseEvent {
+  readonly type: "animationStarted" | "animationEnded" | "animationLooped";
+  readonly gameObjectId: string;
+  readonly animationName: string;
+}
+
+// Add AnimationEvent to the AppEvent union type
+export type AppEvent =
+  | CollisionEvent
+  | InputEvent
+  // ... other events ...
+  | AnimationEvent; // Add this
+
+// Creator function (example for ended)
+export function createAnimationEvent(
+    type: AnimationEvent['type'],
+    gameObjectId: string,
+    animationName: string
+): AnimationEvent {
+    return { type, timestamp: performance.now(), gameObjectId, animationName };
+}
+</code></pre>
+
+        <p>**2. Create a Listener Component (Example: `DestroyAfterAnimationComponent`)**</p>
+        <pre><code class="language-typescript">// filepath: src/core/components/DestroyAfterAnimationComponent.ts (New File)
+import { BaseComponent } from './BaseComponent.js';
+import { EventBus } from '../events/EventBus.js';
+import { AppEvent, AnimationEvent } from '../events/EventTypes.js';
+import { ObjectManager } from '../objects/ObjectManager.js';
+
+export class DestroyAfterAnimationComponent extends BaseComponent {
+    private eventBus: EventBus;
+    private objectManager: ObjectManager;
+    private targetAnimationName: string;
+    private unsubscribe: (() => void) | null = null;
+
+    constructor(eventBus: EventBus, objectManager: ObjectManager) {
+        super();
+        this.eventBus = eventBus;
+        this.objectManager = objectManager;
+        this.targetAnimationName = ''; // Will be set from properties
+    }
+
+    init(properties: { animationName: string }): void {
+        this.targetAnimationName = properties.animationName;
+        if (!this.targetAnimationName) {
+            console.warn('DestroyAfterAnimationComponent: Missing animationName property.');
+            return;
+        }
+
+        this.unsubscribe = this.eventBus.subscribe('animationEnded', this.handleAnimationEnd);
+    }
+
+    // Use arrow function to preserve 'this' context
+    private handleAnimationEnd = (event: AppEvent): void => {
+        // Type guard
+        if (event.type === 'animationEnded') {
+            const animEvent = event as AnimationEvent;
+            if (animEvent.gameObjectId === this.gameObject?.id &&
+                animEvent.animationName === this.targetAnimationName) {
+
+                console.log(`Destroying ${this.gameObject?.name} after animation '${this.targetAnimationName}' ended.`);
+                // Use requestAnimationFrame to delay destruction slightly, avoiding issues
+                // if the event is published during the object manager's update loop.
+                requestAnimationFrame(() => {
+                    if (this.gameObject) { // Check if not already destroyed
+                        this.objectManager.destroyObject(this.gameObject.id);
+                    }
+                });
+            }
+        }
+    };
+
+    destroy(): void {
+        this.unsubscribe?.(); // Unsubscribe when the component/object is destroyed
+        this.unsubscribe = null;
+        super.destroy();
+    }
+
+    update(deltaTime: number): void { /* No update logic needed for event-based approach */ }
+}
+</code></pre>
+        <div class="note">
+            <strong>Note:</strong> The `AnimationComponent` itself would need to be modified to publish the `animationEnded` event using the `EventBus` when a non-looping animation finishes its last frame. This component assumes that modification exists. Remember to register `DestroyAfterAnimationComponent` with the `ObjectManager`.
+        </div>
+
+        <h3>Step 2.4: Handling Animation Completion (Polling - Alternative)</h3>
+        <p>If the `AnimationComponent` doesn't publish events, you can check its state in the `update` method of your cleanup component. This is generally less efficient and potentially less precise.</p>
+        <pre><code class="language-typescript">// Inside DestroyAfterAnimationComponent.update() (Alternative to event subscription)
+import { AnimationComponent } from './AnimationComponent.js'; // Assuming path
+
+update(deltaTime: number): void {
+    if (!this.gameObject) return;
+
+    const animComp = this.gameObject.getComponent(AnimationComponent);
+
+    // Check if the component exists, is NOT playing, and the *last* animation played was the target one
+    if (animComp && !animComp.isPlaying && animComp.currentAnimationName === this.targetAnimationName) {
+        console.log(`Polling: Destroying ${this.gameObject.name} after animation '${this.targetAnimationName}' ended.`);
+        // Delay destruction slightly
+        requestAnimationFrame(() => {
+            if (this.gameObject) {
+                 this.objectManager.destroyObject(this.gameObject.id);
+            }
+        });
+        // Disable further checks (optional, as object will be destroyed)
+        this.enabled = false;
+    }
+}
+</code></pre>
+
+        <h3>Step 2.5: Controlling Playback Speed (Conceptual)</h3>
+        <p>For effects like slow-motion or speeding up animations, the `AnimationComponent` could potentially expose a method like `setSpeed`.</p>
+        <pre><code class="language-typescript">// Conceptual usage
+const animComp = playerObject.getComponent(AnimationComponent);
+if (isSlowMotionActive) {
+    animComp?.setSpeed(0.5); // Play at half speed
+} else {
+    animComp?.setSpeed(1.0); // Play at normal speed
+}
+</code></pre>
+        <div class="note">
+            <strong>Note:</strong> Implementing `setSpeed` would require modifying `AnimationComponent`'s internal time tracking logic to account for the speed factor when advancing through frames.
+        </div>
+
+        <h2>3. Advanced Usage & Examples</h2>
+
+        <h3>Animation State Machines</h3>
+        <p>For characters with multiple actions (idle, walk, run, jump, attack, die), managing animation transitions becomes complex. A common solution is a Finite State Machine (FSM). The FSM resides in a controller component (like `PlayerControllerComponent` or a dedicated `PlayerStateComponent`). Based on input and game conditions, the FSM transitions between states (e.g., from 'idle' to 'walking'). When a state transition occurs, the FSM tells the `AnimationComponent` to play the corresponding animation using `animationComponent.play('walk')`.</p>
+        <p>The `behavior-strategy-demo` might implement a similar concept, where different strategies trigger different animations.</p>
+
+        <h3>Frame-Specific Events (Conceptual)</h3>
+        <p>Sometimes, game logic needs to sync precisely with an animation frame (e.g., apply damage when a sword hits its apex, play a footstep sound). This could be achieved by enhancing `AnimationDefinition` and `AnimationComponent`:</p>
+        <ol>
+            <li>Add an `events` map to `AnimationDefinition`: `events: { "hit": 3, "footstep": 5 }` (event name -> frame index).</li>
+            <li>Modify `AnimationComponent` to check if the current frame index matches any defined event frames.</li>
+            <li>If a match occurs, publish a specific event via `EventBus`, like `animationEventTriggered(eventName: string, gameObjectId: string)`.</li>
+            <li>Other components (e.g., `CombatComponent`, `SoundEffectComponent`) subscribe to this event and react accordingly.</li>
+        </ol>
+        <p>This avoids brittle timing logic based on `setTimeout` or elapsed time.</p>
+
+        <h3>Chaining Animations</h3>
+        <p>Using the `animationEnded` event, you can create sequences. When one animation ends, the event handler calls `play()` for the next animation in the chain.</p>
+        <pre><code class="language-typescript">// Inside a component managing an attack sequence
+handleAnimationEnd = (event: AppEvent): void => {
+    if (event.type === 'animationEnded' && event.gameObjectId === this.gameObject?.id) {
+        const animComp = this.gameObject.getComponent(AnimationComponent);
+        if (!animComp) return;
+
+        switch (event.animationName) {
+            case 'attack_windup':
+                animComp.play('attack_strike');
+                break;
+            case 'attack_strike':
+                // Apply damage here or via frame event
+                animComp.play('attack_recover');
+                break;
+            case 'attack_recover':
+                animComp.play('idle'); // Return to idle
+                break;
+        }
+    }
+};
+</code></pre>
+
+        <h2>4. How the "Advanced Animation Demo" Works</h2>
+        <p>
+            The <a href="/advanced-animation-demo">Advanced Animation Demo</a> demonstrates the creation and automatic cleanup of temporary visual effects (explosions) using non-looping animations and event handling.
+        </p>
+        <h3>HTML Structure (`advanced-animation-demo.html`)</h3>
+        <ul>
+            <li>A <code>&lt;canvas id="game-canvas"&gt;</code> for rendering.</li>
+            <li>A <code>&lt;div id="status"&gt;</code> to provide instructions or feedback.</li>
+        </ul>
+        <h3>Script Interaction (`advanced-animation-demo.ts`)</h3>
+        <ul>
+            <li>Initializes core engine systems (`EventBus`, `ObjectManager`, `AssetLoader`, `Renderer`, `SoundManager`, `SettingsManager`, `InputManager`, `GameLoop`).</li>
+            <li>Registers necessary components with the `ObjectManager`, including `AnimationComponent` and the custom `ExplosionCompletionComponent`.</li>
+            <li>Defines an `explosionPrefab` object containing the base configuration for explosion effects:
+                <ul>
+                    <li>A `SpriteComponent` referencing the first frame (`explosionSheet/frame1`) and centered anchor.</li>
+                    <li>An `AnimationComponent` set to play the `exploding` animation by default (defined in `explosion1_def.json` with `loop: false`).</li>
+                    <li>An `ExplosionCompletionComponent` responsible for cleaning up the object after the animation finishes.</li>
+                </ul>
+            </li>
+            <li>Defines a simple scene with 'background' and 'effects' layers.</li>
+            <li>Loads assets defined in `manifest.json`, including the explosion sprite sheet image and definition.</li>
+            <li>Sets up the initial scene.</li>
+            <li>Subscribes to the `mouseDown` event via the `EventBus`. When the left mouse button is clicked:
+                <ul>
+                    <li>It gets the click coordinates.</li>
+                    <li>It creates a new `GameObjectConfig` by merging the `explosionPrefab` with a unique ID and the click coordinates (`x`, `y`).</li>
+                    <li>It calls `objectManager.createObject()` with this config to instantiate the explosion effect.</li>
+                    <li>It plays the 'explosion' sound using `SoundManager`.</li>
+                </ul>
+            </li>
+            <li>Subscribes to the `gameObjectDestroyed` event via the `EventBus`. When an object is destroyed:
+                <ul>
+                    <li>It checks if the destroyed object had a `CollisionComponent` with group 'enemy' or 'bullet'.</li>
+                    <li>If it matches, it plays the 'explosion' sound.</li>
+                    <li>It creates and instantiates another explosion effect object (using logic similar to the prefab) at the destroyed object's `x`, `y` coordinates.</li>
+                </ul>
+            </li>
+            <li>Starts the `GameLoop`.</li>
+            <li>The `ExplosionCompletionComponent` on each explosion object listens for the `animationEnded` event (or polls the `AnimationComponent` state). When the 'exploding' animation finishes, it calls `objectManager.destroyObject()` on its own `GameObject`, removing the effect from the scene automatically.</li>
+        </ul>
+
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>src/advanced-animation-demo.ts</code></li>
+            <li><code>web/advanced-animation-demo.html</code></li>
+            <li><code>src/core/components/AnimationComponent.ts</code> (Needs modification to publish events or provide state for polling)</li>
+            <li><code>src/core/components/SpriteComponent.ts</code></li>
+            <li><code>src/core/components/ExplosionCompletionComponent.ts</code> (Handles cleanup)</li>
+            <li><code>src/core/events/EventBus.ts</code></li>
+            <li><code>src/core/events/EventTypes.ts</code> (Defines `AnimationEvent`, `InputEvent`, `GameObjectEvent`)</li>
+            <li><code>src/core/objects/ObjectManager.ts</code></li>
+            <li><code>public/assets/defs/explosion1_def.json</code> (Contains the 'exploding' animation definition)</li>
+            <li><code>public/assets/manifest.json</code> (Includes explosion assets)</li>
+        </ul>
+    </main>
+</body>
+</html>

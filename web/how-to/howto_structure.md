@@ -16,7 +16,22 @@ This document outlines the standard structure for creating "How-To" guides and t
 
 Each How-To guide should ideally include the following sections:
 
-### `[Link back to the Demo Page]`
+Include: <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
+Include Main Menu:
+<!-- Add Standard Header -->
+<header class="main-header">
+<nav>
+<a href="/">Demos</a> |
+<a href="/how-to/">How-Tos</a>
+</nav>
+</header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
+    ...content goes here...
+    </main>
+
+### `[Link back to the Demo Page If it exists]`
 
 Example: `<p><a href="/[demo-url]">&laquo; Back to the Demo</a></p>`
 

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite Configuration Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>Sprite Configuration Guide</h1>
+        <p><a href="/sprite-demo">&laquo; Back to the Sprite Demo</a></p>
+
+        <p>This guide explains how to configure sprites for use within the game engine, covering both single images and sprite sheets.</p>
+
+        <h2>Core Concepts</h2>
+        <ul>
+            <li><strong><code>manifest.json</code></strong>: The central file (<code>public/assets/manifest.json</code>) that lists all assets (images, sounds, sprite sheet definitions) the <code>AssetLoader</code> should know about.</li>
+            <li><strong><code>SpriteComponent</code></strong>: The component attached to a <code>GameObject</code> responsible for holding sprite information. Its key property is <code>spriteRef</code>.</li>
+            <li><strong><code>spriteRef</code></strong>: A string within the <code>SpriteComponent</code>'s properties that tells the engine <em>which</em> visual to display. It can be in one of two formats:
+                <ol>
+                    <li><strong>Direct Image Key</strong>: e.g., <code>"playerShip"</code></li>
+                    <li><strong>Sprite Sheet Reference</strong>: e.g., <code>"playerSheet/idle"</code></li>
+                </ol>
+            </li>
+            <li><strong>Sprite Sheet Definition (<code>_def.json</code>)</strong>: A JSON file describing a sprite sheet image, including frame dimensions and the locations of individual sprites within it.</li>
+        </ul>
+
+        <h2>Method 1: Using a Direct Image</h2>
+        <p>This method is suitable for sprites that are single image files and don't require animation frames from a sheet.</p>
+        <ol>
+            <li><strong>Add Image to Manifest:</strong>
+                <ul>
+                    <li>Ensure your image file (e.g., <code>enemy.png</code>) is in the <code>public/assets/images/</code> directory.</li>
+                    <li>Open <code>public/assets/manifest.json</code>.</li>
+                    <li>Add an entry under the <code>images</code> section, giving your image a unique key:
+                        <pre><code class="language-json">{
+  "images": {
+    "playerShip": "/assets/images/player.png",
+    "enemyShip": "/assets/images/enemy.png" // Added enemyShip
+  }
+  // ... other sections ...
+}</code></pre>
+                    </li>
+                </ul>
+            </li>
+            <li><strong>Configure <code>SpriteComponent</code>:</strong>
+                <ul>
+                    <li>When defining your <code>GameObjectConfig</code> (e.g., in <code>advanced-sprite-demo.ts</code>), add a <code>SpriteComponent</code>.</li>
+                    <li>Set the <code>spriteRef</code> property to the <strong>image key</strong> you defined in the manifest.</li>
+                    <li>Optionally, set <code>width</code> and <code>height</code> properties if you want to display the sprite at a size different from its natural image dimensions. If omitted, the renderer will use the image's dimensions.
+                        <pre><code class="language-typescript">// Example GameObjectConfig
+{
+    id: 'enemy_1', name: 'Enemy 1', type: 'enemy',
+    // ... other properties ...
+    components: [
+        {
+            type: 'SpriteComponent',
+            properties: {
+                spriteRef: 'enemyShip', // Use the image key directly
+                width: 32,          // Optional: Force display width
+                height: 32          // Optional: Force display height
+            }
+        },
+        // ... other components ...
+    ]
+}</code></pre>
+                    </li>
+                </ul>
+            </li>
+        </ol>
+        <p><strong>How it Works:</strong></p>
+        <ul>
+            <li><code>AssetLoader</code> loads <code>enemyShip</code> image based on the manifest.</li>
+            <li><code>SpriteComponent</code> parses <code>spriteRef: "enemyShip"</code>. Since it lacks '/', it stores <code>"enemyShip"</code> as the <code>imageKey</code>.</li>
+            <li><code>Renderer</code> sees the <code>imageKey</code> is set, retrieves the corresponding image from <code>AssetLoader</code>, and draws it. If <code>width</code>/<code>height</code> were set in the component, it uses those for drawing dimensions; otherwise, it uses the image's natural dimensions.</li>
+        </ul>
+
+        <h2>Method 2: Using a Sprite Sheet</h2>
+        <p>This method is used for sprites that are part of a larger image containing multiple frames or related images. It's essential for animations.</p>
+        <ol>
+            <li><strong>Create Sprite Sheet Definition (<code>_def.json</code>):</strong>
+                <ul>
+                    <li>Create a JSON file (e.g., <code>player_def.json</code>) in <code>public/assets/defs/</code>.</li>
+                    <li>Define the structure:
+                        <ul>
+                            <li><code>image</code>: The <strong>image key</strong> (from <code>manifest.json</code>) of the sprite sheet image itself (e.g., <code>"playerShip"</code>).</li>
+                            <li><code>frameWidth</code>, <code>frameHeight</code>: The dimensions of a single frame/sprite within the sheet.</li>
+                            <li><code>sprites</code>: An object mapping <strong>sprite names</strong> (e.g., <code>"idle"</code>, <code>"thrust"</code>) to their top-left <code>{x, y}</code> coordinates within the sheet.</li>
+                            <li><code>animations</code> (Optional): Define named animations using the sprite names.</li>
+                        </ul>
+                        <pre><code class="language-json">// Example: public/assets/defs/player_def.json
+{
+  "image": "playerShip", // Key from manifest.json images
+  "frameWidth": 64,
+  "frameHeight": 96,
+  "sprites": {
+    "idle": { "x": 0, "y": 0 },
+    "thrust": { "x": 64, "y": 0 }
+  },
+  "animations": {
+    // Optional
+    "flying": {
+      "frames": ["idle", "thrust"],
+      "duration": 0.5,
+      "loop": true
+    }
+  }
+}</code></pre>
+                    </li>
+                </ul>
+            </li>
+            <li><strong>Add Image and Definition to Manifest:</strong>
+                <ul>
+                    <li>Ensure the sprite sheet image (e.g., <code>player.png</code>) is listed under <code>images</code> in <code>manifest.json</code>.</li>
+                    <li>Add the definition file (<code>player_def.json</code>) under the <code>spriteSheets</code> section, giving it a unique <strong>sheet key</strong>.
+                        <pre><code class="language-json">{
+  "images": {
+    "playerShip": "/assets/images/player.png", // Image used by the sheet
+    "enemyShip": "/assets/images/enemy.png"
+  },
+  // ... sounds ...
+  "spriteSheets": {
+    "playerSheet": "/assets/defs/player_def.json", // Added sheet definition
+    "enemySheet": "/assets/defs/enemy_def.json" // Example for enemy
+  }
+}</code></pre>
+                    </li>
+                </ul>
+            </li>
+            <li><strong>Configure <code>SpriteComponent</code>:</strong>
+                <ul>
+                    <li>When defining your <code>GameObjectConfig</code>, add a <code>SpriteComponent</code>.</li>
+                    <li>Set the <code>spriteRef</code> property using the format <code>"sheetKey/spriteName"</code>.</li>
+                    <li>Usually, you <em>don't</em> need to set <code>width</code> and <code>height</code> here, as the <code>Renderer</code> will use <code>frameWidth</code> and <code>frameHeight</code> from the definition file. You <em>can</em> still override them if needed.
+                        <pre><code class="language-typescript">// Example GameObjectConfig
+{
+    id: 'player', name: 'Player', type: 'player',
+    // ... other properties ...
+    components: [
+        {
+            type: 'SpriteComponent',
+            properties: {
+                // Use "sheetKey/spriteName" format
+                spriteRef: 'playerSheet/idle'
+                // Width/Height usually omitted, derived from definition
+            }
+        },
+        // ... other components ...
+    ]
+}</code></pre>
+                    </li>
+                </ul>
+            </li>
+        </ol>
+        <p><strong>How it Works:</strong></p>
+        <ul>
+            <li><code>AssetLoader</code> loads the <code>playerShip</code> image and the <code>playerSheet</code> definition JSON based on the manifest.</li>
+            <li><code>SpriteComponent</code> parses <code>spriteRef: "playerSheet/idle"</code>. It splits by '/', storing <code>"playerSheet"</code> as <code>currentSheetKey</code> and <code>"idle"</code> as <code>currentSpriteName</code>.</li>
+            <li><code>Renderer</code> sees <code>currentSheetKey</code> is set. It retrieves the <code>playerSheet</code> definition from <code>AssetLoader</code>. Using the definition and <code>currentSpriteName</code> (<code>"idle"</code>), it finds the correct <code>image</code> key (<code>"playerShip"</code>), the source rectangle (<code>sx</code>, <code>sy</code> from <code>sprites["idle"]</code>, <code>sw</code>, <code>sh</code> from <code>frameWidth</code>/<code>frameHeight</code>), and the image itself. It then draws the specified frame. The component's <code>width</code>/<code>height</code> default to the frame dimensions unless explicitly overridden.</li>
+        </ul>
+        <p>By following these steps, you can correctly configure sprites whether they are standalone images or part of a sprite sheet.</p>
+    </main>
+</body>
+</html>

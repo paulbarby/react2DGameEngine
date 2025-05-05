@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Behavior Strategy Pattern Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>Behavior Strategy Pattern Guide</h1>
+        <p><a href="/behavior-strategy-demo">&laquo; Back to the Behavior Strategy Demo</a></p>
+
+        <h2>1. Understanding the Behavior Strategy Pattern</h2>
+        <p>
+            The Behavior Strategy pattern is a behavioral design pattern that allows you to define a family of algorithms, encapsulate each one, and make them interchangeable. It lets the algorithm vary independently from the clients that use it. In game development, this is extremely useful for managing different AI behaviors (like wandering, chasing, attacking, fleeing), player states (walking, running, jumping), weapon firing modes, or any situation where an object's specific actions need to change dynamically based on context.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To enable dynamic switching between different algorithms or behaviors for an object at runtime.</li>
+            <li><strong>Role in Engine:</strong> The pattern is typically implemented using several collaborating components:
+                <ul>
+                    <li>A <strong>Context Component</strong> (e.g., <code>BehaviorStrategyComponent</code>) holds a reference to the currently active strategy object and provides an interface to switch strategies.</li>
+                    <li>A <strong>Strategy Interface</strong> (e.g., <code>BehaviorStrategy</code>) defines the common methods that all concrete strategy algorithms must implement (like <code>update</code>, <code>enter</code>, <code>exit</code>).</li>
+                    <li><strong>Concrete Strategy Classes</strong> (e.g., <code>WanderStrategy</code>, <code>ChaseStrategy</code>, <code>AttackStrategy</code>) implement the Strategy Interface, each encapsulating a specific algorithm or behavior. They often interact with other components on the same GameObject (like <code>AnimationComponent</code> or manipulating position directly).</li>
+                    <li>A <strong>Controller Component</strong> (e.g., <code>AIControllerComponent</code>) often acts as the decision-maker. It monitors game state (like player proximity, object health) and tells the Context Component (<code>BehaviorStrategyComponent</code>) *which* strategy to activate.</li>
+                </ul>
+            </li>
+            <li><strong>Core Concepts:</strong>
+                <ul>
+                    <li><strong><code>BehaviorStrategyComponent</code>:</strong> The "Context". Manages the current strategy instance. Key method: `setStrategy(strategyKey, config)`. Its `update` method delegates to the current strategy's `update`.</li>
+                    <li><strong><code>BehaviorStrategy</code> (Interface/Base):</strong> Defines the contract for all strategies (e.g., `enter(config?)`, `update(deltaTime)`, `exit()`).</li>
+                    <li><strong>Concrete Strategies (e.g., <code>WanderStrategy</code>, <code>ChaseStrategy</code>):</strong> Implementations of `BehaviorStrategy`. Contain the actual logic for a specific behavior.</li>
+                    <li><strong><code>AIControllerComponent</code> (or similar):</strong> The decision-maker. Observes state, determines the desired behavior, and calls `BehaviorStrategyComponent.setStrategy()`.</li>
+                    <li><strong>Strategy Factory (Internal):</strong> The `BehaviorStrategyComponent` likely uses an internal mechanism (or injected factory) to create instances of concrete strategies based on a string key.</li>
+                    <li><strong>Configuration Objects:</strong> Data passed to `setStrategy` and the strategy's `enter` method, allowing customization of strategy instances (e.g., different speeds for the same `ChaseStrategy`).</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Creates cleaner, more maintainable code compared to large conditional statements (if/else or switch) within an object's update loop. Makes adding new behaviors easier by simply creating a new strategy class. Promotes separation of concerns (decision-making logic in the Controller, behavior execution logic in the Strategies, management in the Context Component).</li>
+        </ul>
+
+        <h2>2. Tutorial: Implementing Behavior Strategies</h2>
+        <p>This tutorial outlines the steps to implement the Behavior Strategy pattern, referencing the approach used in <code>behavior-strategy-demo.ts</code>.</p>
+
+        <h3>Step 2.1: Define Strategy Interface/Base</h3>
+        <p>Define a common interface or base class for all your strategies.</p>
+        <pre><code class="language-typescript">// filepath: src/core/ai/BehaviorStrategy.ts (Conceptual Example)
+import { IGameObject } from '../../types/core.js';
+
+export interface BehaviorStrategy {
+    // Optional: Reference to the GameObject this strategy belongs to
+    gameObject: IGameObject | null;
+
+    /**
+     * Called when this strategy becomes active.
+     * @param config Optional configuration data passed from setStrategy.
+     */
+    enter(config?: any): void;
+
+    /**
+     * Called every frame while this strategy is active.
+     * @param deltaTime Time elapsed since the last frame.
+     */
+    update(deltaTime: number): void;
+
+    /**
+     * Called when this strategy is deactivated.
+     */
+    exit(): void;
+}
+</code></pre>
+
+        <h3>Step 2.2: Implement Concrete Strategies</h3>
+        <p>Create classes for each specific behavior, implementing the `BehaviorStrategy` interface.</p>
+        <pre><code class="language-typescript">// filepath: src/core/ai/strategies/WanderStrategy.ts (Simplified Example)
+import { BehaviorStrategy } from '../BehaviorStrategy.js';
+import { IGameObject } from '../../../types/core.js';
+import { AnimationComponent } from '../../components/AnimationComponent.js'; // Example dependency
+
+export class WanderStrategy implements BehaviorStrategy {
+    gameObject: IGameObject | null = null;
+    private speed: number = 50;
+    private targetX: number = 0;
+    private targetY: number = 0;
+    private changeTargetTimer: number = 0;
+    private changeTargetInterval: number = 3; // Default
+    private bounds: { width: number, height: number } | null = null;
+    private animationName: string | null = null;
+
+    enter(config?: { speed?: number, changeTargetInterval?: number, bounds?: any, animationName?: string }): void {
+        console.log(`${this.gameObject?.name}: Entering WanderStrategy`);
+        this.speed = config?.speed ?? this.speed;
+        this.changeTargetInterval = config?.changeTargetInterval ?? this.changeTargetInterval;
+        this.bounds = config?.bounds ?? this.bounds;
+        this.animationName = config?.animationName ?? null;
+        this.setNewWanderTarget();
+        this.changeTargetTimer = this.changeTargetInterval;
+
+        // Tell AnimationComponent to play wander animation
+        if (this.animationName) {
+            this.gameObject?.getComponent(AnimationComponent)?.play(this.animationName);
+        }
+    }
+
+    update(deltaTime: number): void {
+        if (!this.gameObject) return;
+
+        this.changeTargetTimer -= deltaTime;
+        if (this.changeTargetTimer <= 0) {
+            this.setNewWanderTarget();
+            this.changeTargetTimer = this.changeTargetInterval;
+        }
+
+        // Simple movement towards target (replace with MovementComponent interaction if available)
+        const dx = this.targetX - this.gameObject.x;
+        const dy = this.targetY - this.gameObject.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > 5) { // Move if not close enough
+            this.gameObject.x += (dx / distance) * this.speed * deltaTime;
+            this.gameObject.y += (dy / distance) * this.speed * deltaTime;
+        } else { // Reached target, pick a new one sooner
+             this.setNewWanderTarget();
+             this.changeTargetTimer = this.changeTargetInterval;
+        }
+    }
+
+    exit(): void {
+        console.log(`${this.gameObject?.name}: Exiting WanderStrategy`);
+        // Optional: Stop movement, reset animation state if needed
+    }
+
+    private setNewWanderTarget(): void {
+        if (!this.gameObject || !this.bounds) return;
+        // Simple random target within bounds
+        this.targetX = Math.random() * this.bounds.width;
+        this.targetY = Math.random() * this.bounds.height;
+        console.log(`${this.gameObject.name}: New wander target (${this.targetX.toFixed(0)}, ${this.targetY.toFixed(0)})`);
+    }
+}
+</code></pre>
+        <pre><code class="language-typescript">// filepath: src/core/ai/strategies/ChaseStrategy.ts (Simplified Example)
+import { BehaviorStrategy } from '../BehaviorStrategy.js';
+import { IGameObject } from '../../../types/core.js';
+import { ObjectManager } from '../../objects/ObjectManager.js'; // Example dependency
+import { AnimationComponent } from '../../components/AnimationComponent.js'; // Example dependency
+
+export class ChaseStrategy implements BehaviorStrategy {
+    gameObject: IGameObject | null = null;
+    private objectManager: ObjectManager; // Injected dependency
+    private targetId: string | null = null;
+    private targetObject: IGameObject | null = null;
+    private speed: number = 100;
+    private stoppingDistance: number = 50;
+    private animationName: string | null = null;
+
+    // Dependencies like ObjectManager are often passed via constructor
+    constructor(objectManager: ObjectManager) {
+        this.objectManager = objectManager;
+    }
+
+    enter(config?: { targetId?: string, speed?: number, stoppingDistance?: number, animationName?: string }): void {
+        console.log(`${this.gameObject?.name}: Entering ChaseStrategy`);
+        this.targetId = config?.targetId ?? null;
+        this.speed = config?.speed ?? this.speed;
+        this.stoppingDistance = config?.stoppingDistance ?? this.stoppingDistance;
+        this.animationName = config?.animationName ?? null;
+        this.targetObject = this.targetId ? this.objectManager.getObjectById(this.targetId) : null;
+
+        if (!this.targetObject) {
+            console.warn(`${this.gameObject?.name}: Chase target '${this.targetId}' not found!`);
+        }
+
+        if (this.animationName) {
+            this.gameObject?.getComponent(AnimationComponent)?.play(this.animationName);
+        }
+    }
+
+    update(deltaTime: number): void {
+        if (!this.gameObject || !this.targetObject) {
+            // Maybe switch back to wander/idle if target is lost? Controller handles this.
+            return;
+        }
+
+        // Ensure target still exists
+        if (!this.objectManager.getObjectById(this.targetObject.id)) {
+            this.targetObject = null;
+            return;
+        }
+
+        const dx = this.targetObject.x - this.gameObject.x;
+        const dy = this.targetObject.y - this.gameObject.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance > this.stoppingDistance) {
+            this.gameObject.x += (dx / distance) * this.speed * deltaTime;
+            this.gameObject.y += (dy / distance) * this.speed * deltaTime;
+        } else {
+            // Reached stopping distance, maybe controller switches to Attack?
+        }
+    }
+
+    exit(): void {
+        console.log(`${this.gameObject?.name}: Exiting ChaseStrategy`);
+        this.targetObject = null; // Clear target reference
+    }
+}
+</code></pre>
+
+        <h3>Step 2.3: Implement `BehaviorStrategyComponent`</h3>
+        <p>This component manages the active strategy.</p>
+        <pre><code class="language-typescript">// filepath: src/core/components/BehaviorStrategyComponent.ts (Conceptual)
+import { BaseComponent } from './BaseComponent.js';
+import { BehaviorStrategy } from '../ai/BehaviorStrategy.js';
+import { WanderStrategy } from '../ai/strategies/WanderStrategy.js'; // Import concrete strategies
+import { ChaseStrategy } from '../ai/strategies/ChaseStrategy.js';
+import { AttackStrategy } from '../ai/strategies/AttackStrategy.js';
+import { IdleStrategy } from '../ai/strategies/IdleStrategy.js';
+import { ObjectManager } from '../objects/ObjectManager.js'; // Example dependency for strategies
+import { EventBus } from '../events/EventBus.js'; // Example dependency for strategies
+
+export class BehaviorStrategyComponent extends BaseComponent {
+    private currentStrategy: BehaviorStrategy | null = null;
+    private strategyFactory: Map<string, () => BehaviorStrategy>;
+    private initialStrategyKey: string | null = null;
+    private initialStrategyConfig: any = null;
+
+    // Dependencies needed by strategies are passed here
+    constructor(private objectManager: ObjectManager, private eventBus: EventBus) {
+        super();
+        // Simple factory mapping keys to constructors/factories
+        this.strategyFactory = new Map<string, () => BehaviorStrategy>([
+            ['idle', () => new IdleStrategy()],
+            ['wander', () => new WanderStrategy()],
+            // Pass dependencies needed by the strategy constructor
+            ['chase', () => new ChaseStrategy(this.objectManager)],
+            ['attack', () => new AttackStrategy(this.eventBus)]
+        ]);
+    }
+
+    init(properties: { initialStrategyKey?: string, initialStrategyConfig?: any }): void {
+        this.initialStrategyKey = properties.initialStrategyKey ?? null;
+        this.initialStrategyConfig = properties.initialStrategyConfig ?? null;
+
+        if (this.initialStrategyKey) {
+            this.setStrategy(this.initialStrategyKey, this.initialStrategyConfig);
+        }
+    }
+
+    setStrategy(strategyKey: string, config?: any): boolean {
+        const strategyConstructor = this.strategyFactory.get(strategyKey);
+        if (!strategyConstructor) {
+            console.error(`${this.gameObject?.name}: Unknown strategy key '${strategyKey}'`);
+            return false;
+        }
+
+        if (this.currentStrategy) {
+            // Avoid unnecessary switches if the key is the same (optional optimization)
+            // if (this.currentStrategy instanceof ???) return true; // Needs better type checking
+            this.currentStrategy.exit();
+        }
+
+        const newStrategy = strategyConstructor();
+        newStrategy.gameObject = this.gameObject; // Assign the GameObject reference
+
+        console.log(`${this.gameObject?.name}: Switching strategy to ${strategyKey}`);
+        this.currentStrategy = newStrategy;
+        this.currentStrategy.enter(config);
+        return true;
+    }
+
+    update(deltaTime: number): void {
+        if (this.currentStrategy) {
+            this.currentStrategy.update(deltaTime);
+        }
+    }
+
+    destroy(): void {
+        if (this.currentStrategy) {
+            this.currentStrategy.exit();
+            this.currentStrategy = null;
+        }
+        super.destroy();
+    }
+}
+</code></pre>
+        <div class="note">
+            <strong>Note:</strong> The `BehaviorStrategyComponent` needs dependencies (like `ObjectManager`, `EventBus`) if its strategies require them. These are typically injected via its constructor by the `ObjectManager` when the component is created.
+        </div>
+
+        <h3>Step 2.4: Implement Controller (`AIControllerComponent`)</h3>
+        <p>This component decides when to switch strategies.</p>
+        <pre><code class="language-typescript">// filepath: src/core/components/AIControllerComponent.ts (Simplified from Demo)
+import { BaseComponent } from './BaseComponent.js';
+import { BehaviorStrategyComponent } from './BehaviorStrategyComponent.js';
+import { ObjectManager } from '../objects/ObjectManager.js';
+import { IGameObject } from '../../types/core.js';
+
+export class AIControllerComponent extends BaseComponent {
+    private objectManager: ObjectManager;
+    private behaviorComponent: BehaviorStrategyComponent | null = null;
+    private targetTag: string = 'player';
+    private target: IGameObject | null = null;
+    private detectionRadius: number = 200;
+    private attackRange: number = 50;
+    private loseTargetDistance: number = 300;
+    private currentState: 'idle' | 'wander' | 'chase' | 'attack' = 'idle';
+
+    // Configs for each strategy, passed when switching
+    private idleConfig: any = {};
+    private wanderConfig: any = {};
+    private chaseConfig: any = {};
+    private attackConfig: any = {};
+
+    constructor(objectManager: ObjectManager) {
+        super();
+        this.objectManager = objectManager;
+    }
+
+    init(properties: any): void {
+        this.targetTag = properties.targetTag ?? this.targetTag;
+        this.detectionRadius = properties.detectionRadius ?? this.detectionRadius;
+        this.attackRange = properties.attackRange ?? this.attackRange;
+        this.loseTargetDistance = properties.loseTargetDistance ?? this.loseTargetDistance;
+        // Store configs passed from GameObjectConfig
+        this.idleConfig = properties.idleConfig ?? {};
+        this.wanderConfig = properties.wanderConfig ?? {};
+        this.chaseConfig = properties.chaseConfig ?? {};
+        this.attackConfig = properties.attackConfig ?? {};
+    }
+
+    update(deltaTime: number): void {
+        if (!this.gameObject) return;
+        if (!this.behaviorComponent) {
+            this.behaviorComponent = this.gameObject.getComponent(BehaviorStrategyComponent);
+            if (!this.behaviorComponent) {
+                console.error(`${this.gameObject.name}: AIControllerComponent requires BehaviorStrategyComponent!`);
+                this.enabled = false; // Disable self
+                return;
+            }
+        }
+
+        // Find target (can be optimized)
+        this.target = this.objectManager.findObjectByType(this.targetTag); // Assuming findObjectByType exists
+
+        let distanceToTarget = Infinity;
+        if (this.target) {
+            const dx = this.target.x - this.gameObject.x;
+            const dy = this.target.y - this.gameObject.y;
+            distanceToTarget = Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // --- State Transition Logic ---
+        let nextState = this.currentState;
+
+        switch (this.currentState) {
+            case 'idle':
+            case 'wander':
+                if (this.target && distanceToTarget <= this.detectionRadius) {
+                    nextState = 'chase';
+                } else if (this.currentState === 'idle') {
+                    // Maybe transition from idle to wander after a timer?
+                    // For simplicity, demo might start in wander.
+                }
+                break;
+            case 'chase':
+                if (!this.target || distanceToTarget > this.loseTargetDistance) {
+                    nextState = 'wander'; // Target lost or too far, go back to wandering
+                } else if (distanceToTarget <= this.attackRange) {
+                    nextState = 'attack'; // Close enough to attack
+                }
+                break;
+            case 'attack':
+                if (!this.target || distanceToTarget > this.attackRange * 1.1) { // Add hysteresis
+                    // Target moved out of attack range, but maybe still chase?
+                    nextState = 'chase';
+                }
+                // Attack strategy itself might handle attack timing/completion
+                break;
+        }
+
+        // --- Apply State Transition ---
+        if (nextState !== this.currentState) {
+            this.currentState = nextState;
+            let configToPass: any = {};
+            switch (this.currentState) {
+                case 'idle':   configToPass = this.idleConfig; break;
+                case 'wander': configToPass = this.wanderConfig; break;
+                case 'chase':
+                    configToPass = { ...this.chaseConfig, targetId: this.target?.id }; // Pass dynamic target ID
+                    break;
+                case 'attack':
+                     configToPass = { ...this.attackConfig, targetId: this.target?.id }; // Pass dynamic target ID
+                    break;
+            }
+            this.behaviorComponent.setStrategy(this.currentState, configToPass);
+        }
+    }
+}
+</code></pre>
+
+        <h3>Step 2.5: Configure the GameObject</h3>
+        <p>In your scene definition, configure the GameObject with both components and their properties.</p>
+        <pre><code class="language-typescript">// filepath: src/behavior-strategy-demo.ts (within gameObjects array)
+{
+    id: 'ai_enemy_1', name: 'AI Enemy', type: 'enemy',
+    x: 150, y: 150, layerId: 'main',
+    components: [
+        // Visuals, Physics, Animation...
+        { type: 'SpriteComponent', properties: { spriteRef: 'enemy2Sheet/idle', anchor: { x: 0.5, y: 0.5 } }},
+        { type: 'CollisionComponent', properties: { group: 'enemy', collidesWith: ['player'] }},
+        { type: 'AnimationComponent', properties: { defaultAnimation: 'idle' }},
+
+        // Behavior Strategy Management
+        { type: 'BehaviorStrategyComponent', properties: {
+            // Starts in 'wander' using config provided by AIControllerComponent later
+            initialStrategyKey: 'wander',
+            // initialStrategyConfig could be set here, but demo sets it via AIController
+        }},
+
+        // Decision Making Controller
+        { type: 'AIControllerComponent', properties: {
+            targetTag: 'player',
+            detectionRadius: 250,
+            attackRange: 70,
+            loseTargetDistance: 350,
+
+            // Configurations passed TO strategies when switching
+            idleConfig: { animationName: 'idle' },
+            wanderConfig: {
+                speed: 60,
+                wanderRadius: 100,
+                changeTargetInterval: 2.5,
+                animationName: 'walk',
+                bounds: { width: canvas.width, height: canvas.height } // Pass canvas bounds
+            },
+            chaseConfig: {
+                speed: 110,
+                stoppingDistance: 60,
+                animationName: 'run'
+                // targetId is added dynamically by AIControllerComponent
+            },
+            attackConfig: {
+                attackInterval: 1.2,
+                attackRange: 70,
+                animationName: 'attack',
+                attackEventName: 'enemyAttack' // Event published by AttackStrategy
+                // targetId is added dynamically by AIControllerComponent
+            }
+        }}
+    ]
+}
+</code></pre>
+
+        <h2>3. Advanced Usage & Examples</h2>
+
+        <h3>State Machines vs. Strategy Pattern</h3>
+        <p>
+            While similar, they address slightly different problems. A Finite State Machine (FSM) is generally concerned with managing transitions between distinct *states* an object can be in (e.g., Alive, Dead, Stunned, Jumping). The Strategy pattern is focused on swapping interchangeable *algorithms* or *behaviors*, often *within* a particular state.
+        </p>
+        <p>
+            They can work together effectively. For example, an FSM might manage the 'Alive' state. Within the 'Alive' state's logic, it could use a `BehaviorStrategyComponent` to switch between 'wander', 'chase', and 'attack' algorithms based on proximity to the player. When the object's health drops to zero, the FSM transitions to the 'Dead' state, which might involve playing a death animation and disabling the `BehaviorStrategyComponent`.
+        </p>
+
+        <h3>Strategy Configuration</h3>
+        <p>
+            Passing configuration objects (`config`) to `BehaviorStrategyComponent.setStrategy()` and subsequently to the strategy's `enter()` method is a key feature. It allows you to reuse the same strategy class with different parameters. For instance, you could have multiple enemies using `ChaseStrategy`, but configure them with different `speed` values or different `animationName`s via the config object passed from their respective `AIControllerComponent`s.
+        </p>
+
+        <h3>Combining Strategies</h3>
+        <p>
+            For complex objects, you might consider having multiple `BehaviorStrategyComponent` instances managing orthogonal aspects of behavior. For example, one component could manage movement strategies (Wander, Chase, Flee, PatrolPath), while another manages combat strategies (AggressiveAttack, DefensiveAttack, SupportAlly). This requires careful design to ensure the strategies don't conflict and that the controlling logic correctly manages both components. It can significantly increase complexity.
+        </p>
+
+        <h3>Event-Driven Transitions</h3>
+        <p>
+            Instead of constantly checking conditions (like distance) in the `AIControllerComponent`'s `update` loop (polling), strategy transitions can be triggered by events. For example:
+        </p>
+        <ul>
+            <li>A `SensorComponent` (perhaps using collision shapes as triggers) could publish `playerEnteredDetectionZone` or `playerLeftDetectionZone` events.</li>
+            <li>The `AIControllerComponent` subscribes to these events.</li>
+            <li>On `playerEnteredDetectionZone`, it calls `setStrategy('chase')`.</li>
+            <li>On `playerLeftDetectionZone`, it calls `setStrategy('wander')`.</li>
+        </ul>
+        <p>This event-driven approach can be more efficient than polling, especially if the conditions for switching don't change frequently.</p>
+
+        <h3>Strategy Dependencies</h3>
+        <p>
+            Concrete strategies often need to interact with other parts of the engine or other components on the same GameObject.
+        </p>
+        <ul>
+            <li><strong>Other Components:</strong> Strategies typically access sibling components using `this.gameObject.getComponent(ComponentType)`. For example, `ChaseStrategy` might get `AnimationComponent` to call `play('run')`.</li>
+            <li><strong>Engine Systems:</strong> If a strategy needs access to global systems like `ObjectManager` (to find targets) or `EventBus` (to publish events), these dependencies are usually injected when the strategy instance is created. This is often handled within the `BehaviorStrategyComponent`'s factory mechanism, which receives these systems as dependencies itself.</li>
+        </ul>
+
+        <h2>4. How the "Behavior Strategy Demo" Works</h2>
+        <p>
+            The <a href="/behavior-strategy-demo">Behavior Strategy Demo</a> showcases an AI enemy dynamically switching between wandering, chasing, and attacking behaviors based on the player's proximity.
+        </p>
+        <h3>HTML Structure (`behavior-strategy-demo.html`)</h3>
+        <ul>
+            <li>A <code>&lt;canvas id="game-canvas"&gt;</code> for rendering.</li>
+            <li>A <code>&lt;div id="status"&gt;</code> to display loading messages and potentially runtime status.</li>
+            <li>Paragraphs providing instructions.</li>
+        </ul>
+        <h3>Script Interaction (`behavior-strategy-demo.ts`)</h3>
+        <ul>
+            <li>Initializes core engine systems (`EventBus`, `ObjectManager`, `AssetLoader`, `Renderer`, `SoundManager`, `InputManager`, `CollisionSystem`, `GameLoop`).</li>
+            <li>Registers necessary components with `ObjectManager`, including `BehaviorStrategyComponent`, `AIControllerComponent`, `PlayerControllerComponent`, `AnimationComponent`, `CollisionComponent`, `SpriteComponent`. (Note: Concrete strategy classes like `WanderStrategy` are likely instantiated internally by `BehaviorStrategyComponent` based on keys, not registered directly as components).</li>
+            <li>Creates a 'player' `GameObject` controlled via keyboard/mouse using `PlayerControllerComponent`.</li>
+            <li>Creates an 'ai_enemy_1' `GameObject` which includes:
+                <ul>
+                    <li>Standard components: `SpriteComponent`, `CollisionComponent`, `AnimationComponent`.</li>
+                    <li>The `BehaviorStrategyComponent`: This component manages the currently active behavior logic. It's configured via `AIControllerComponent` to start in the 'wander' state.</li>
+                    <li>The `AIControllerComponent`: This component acts as the brain. It's configured with:
+                        <ul>
+                            <li>`targetTag: 'player'` to identify what to look for.</li>
+                            <li>Radii (`detectionRadius`, `attackRange`, `loseTargetDistance`) to define proximity thresholds.</li>
+                            <li>Configuration objects (`idleConfig`, `wanderConfig`, `chaseConfig`, `attackConfig`) containing parameters (like speed, animation names, event names) specific to each potential strategy.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li>In the main game loop, the `AIControllerComponent`'s `update` method runs:
+                <ul>
+                    <li>It finds the player object.</li>
+                    <li>It calculates the distance to the player.</li>
+                    <li>Based on the distance and its configured radii, it determines the desired state ('wander', 'chase', 'attack', or potentially 'idle').</li>
+                    <li>If the desired state differs from the current state, it calls `behaviorStrategyComponent.setStrategy(newStateKey, relevantConfigObject)`. For example, if the player enters the detection radius, it calls `setStrategy('chase', this.chaseConfig)`.</li>
+                </ul>
+            </li>
+            <li>The `BehaviorStrategyComponent.setStrategy` method handles the switch:
+                <ul>
+                    <li>Calls `exit()` on the previously active strategy (if any).</li>
+                    <li>Uses its internal factory to create an instance of the requested strategy (e.g., `new ChaseStrategy(...)`).</li>
+                    <li>Calls `enter(configObject)` on the new strategy instance, passing the configuration (e.g., `chaseConfig`).</li>
+                    <li>Stores the new strategy instance as the `currentStrategy`.</li>
+                </ul>
+            </li>
+            <li>The `BehaviorStrategyComponent.update` method calls `this.currentStrategy.update(deltaTime)`.</li>
+            <li>The active strategy's `update` method (e.g., `ChaseStrategy.update`) executes its logic:
+                <ul>
+                    <li>Moves the enemy towards/away from the target (by modifying `this.gameObject.x/y`).</li>
+                    <li>Tells the `AnimationComponent` to play the appropriate animation (e.g., `play('run')`) based on the configuration received in `enter`.</li>
+                    <li>If it's the `AttackStrategy`, it might check a timer and, when ready, publish an `enemyAttack` event via the `EventBus`.</li>
+                </ul>
+            </li>
+            <li>A listener function setup in `behavior-strategy-demo.ts` subscribes to the `enemyAttack` event on the `EventBus`. When the event is published by the `AttackStrategy`, the listener logs a message and plays a sound effect using `SoundManager`.</li>
+        </ul>
+
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>src/behavior-strategy-demo.ts</code></li>
+            <li><code>web/behavior-strategy-demo.html</code></li>
+            <li><code>src/core/components/BehaviorStrategyComponent.ts</code> (The Context)</li>
+            <li><code>src/core/components/AIControllerComponent.ts</code> (The Decision Maker)</li>
+            <li><code>src/core/ai/BehaviorStrategy.ts</code> (The Strategy Interface/Base)</li>
+            <li><code>src/core/ai/strategies/WanderStrategy.ts</code> (Concrete Strategy)</li>
+            <li><code>src/core/ai/strategies/ChaseStrategy.ts</code> (Concrete Strategy)</li>
+            <li><code>src/core/ai/strategies/AttackStrategy.ts</code> (Concrete Strategy)</li>
+            <li><code>src/core/ai/strategies/IdleStrategy.ts</code> (Concrete Strategy)</li>
+            <li><code>src/core/events/EventBus.ts</code></li>
+            <li><code>src/core/events/EventTypes.ts</code> (Defines `GameplayEvent` used for `enemyAttack`)</li>
+            <li><code>src/core/components/AnimationComponent.ts</code> (Used by strategies)</li>
+        </ul>
+    </main>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scene Management Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>Scene Management Guide</h1>
+        <p><a href="/scene-manager-demo">&laquo; Back to the Scene Manager Demo</a></p>
+
+        <h2>1. Understanding Scene Management</h2>
+        <p>
+            The Scene Management system is responsible for organizing the game's content into logical units called scenes. Scenes can represent different levels, menus (like main menu, options), game states (gameplay, game over), or distinct areas within a larger world. The <code>SceneManager</code> facilitates loading these scenes and switching between them.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To structure game content, manage transitions between different game states or levels, and control which objects are currently active.</li>
+            <li><strong>Role in Engine:</strong> The <code>SceneManager</code> holds the definitions for all scenes within a project. It loads the overall project structure and provides methods to load a specific scene by name. It works closely with the <code>ObjectManager</code>, which is responsible for actually creating and destroying the <code>GameObject</code> instances based on the configuration defined in the currently active scene. The <code>GameLoop</code> queries the <code>SceneManager</code> to get the current scene definition for rendering and potentially for update logic.</li>
+            <li><strong>Core Concepts:</strong>
+                <ul>
+                    <li><strong><code>SceneManager</code>:</strong> The central class for managing scene definitions and transitions. Key methods: `loadProject()`, `loadScene()`, `getCurrentScene()`.</li>
+                    <li><strong><code>Project</code> (defined in `types/project.ts`):</strong> A data structure (typically loaded from JSON or defined in code) that contains the entire game's scene configurations. It includes a map of all `Scene` definitions and specifies the `startScene`.</li>
+                    <li><strong><code>Scene</code> (defined in `types/project.ts`):</strong> Defines a single scene, including its unique `id`, `name`, an array of `Layer` definitions, and an array of `GameObjectConfig` objects representing the initial state of objects within that scene.</li>
+                    <li><strong><code>Layer</code> (defined in `types/project.ts`):</strong> Defines a rendering layer within a scene, including its `id`, `name`, `depth` (for sorting), and `visible` status.</li>
+                    <li><strong><code>GameObjectConfig</code> (defined in `types/project.ts`):</strong> A blueprint or configuration object describing a game object to be created within a scene, including its `id`, `name`, `type`, initial position (`x`, `y`), `layerId`, and an array of `ComponentConfig`s.</li>
+                    <li><strong><code>ObjectManager</code>:</strong> Responsible for instantiating `GameObject`s and their components based on the `GameObjectConfig` array from the current scene provided by the `SceneManager`. It also handles destroying objects, often triggered when switching scenes.</li>
+                    <li><strong><code>GameLoop</code>:</strong> Retrieves the current scene from `SceneManager` during its cycle to pass necessary information (like layers and objects via `ObjectManager`) to the `Renderer`.</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Essential for structuring any game beyond a single screen, enabling level progression, menu navigation, and managing game state complexity.</li>
+        </ul>
+
+        <h2>2. Tutorial: Using the Scene Manager</h2>
+        <p>This tutorial demonstrates how to define multiple scenes and switch between them, referencing the <code>scene-manager-demo.ts</code>.</p>
+
+        <h3>Step 2.1: Define Project and Scenes</h3>
+        <p>Structure your game content within a `Project` object. Define each `Scene` with its layers and initial object configurations (`GameObjectConfig`).</p>
+        <pre><code class="language-typescript">// filepath: src/your-project-setup.ts (or scene-manager-demo.ts)
+import { Project, Scene, GameObjectConfig } from './types/project.js';
+
+// Define configurations for objects in Scene 1
+const scene1Objects: GameObjectConfig[] = [
+    { id: 'obj1-s1', name: 'Red Square', type: 'shape', x: 100, y: 100, layerId: 'main',
+      components: [{ type: 'SpriteComponent', properties: { spriteRef: 'red', width: 50, height: 50 } }] },
+    { id: 'obj2-s1', name: 'Blue Square', type: 'shape', x: 300, y: 200, layerId: 'main',
+      components: [{ type: 'SpriteComponent', properties: { spriteRef: 'blue', width: 50, height: 50 } }] }
+];
+
+// Define configurations for objects in Scene 2
+const scene2Objects: GameObjectConfig[] = [
+    { id: 'obj1-s2', name: 'Green Circle', type: 'shape', x: 400, y: 150, layerId: 'main',
+      components: [{ type: 'SpriteComponent', properties: { spriteRef: 'green', width: 60, height: 60 } }] },
+    { id: 'obj2-s2', name: 'Yellow Circle', type: 'shape', x: 150, y: 250, layerId: 'main',
+      components: [{ type: 'SpriteComponent', properties: { spriteRef: 'yellow', width: 40, height: 40 } }] }
+];
+
+// Define Scene 1
+const scene1: Scene = {
+    id: 'scene1', name: 'Scene 1',
+    layers: [{ id: 'main', name: 'Main Layer', depth: 1, visible: true }],
+    objects: scene1Objects
+};
+
+// Define Scene 2
+const scene2: Scene = {
+    id: 'scene2', name: 'Scene 2',
+    layers: [{ id: 'main', name: 'Main Layer', depth: 1, visible: true }],
+    objects: scene2Objects
+};
+
+// Define the overall Project
+const demoProject: Project = {
+    startScene: scene1.name, // Specify which scene loads first
+    scenes: {
+        [scene1.name]: scene1, // Map scene names to scene definitions
+        [scene2.name]: scene2
+    }
+};
+</code></pre>
+
+        <h3>Step 2.2: Initialize `SceneManager`</h3>
+        <p>Create an instance of `SceneManager` and load your project definition.</p>
+        <pre><code class="language-typescript">// filepath: src/your-main-script.ts (or scene-manager-demo.ts)
+import { SceneManager } from './core/scene/SceneManager.js';
+// ... other imports ...
+
+const sceneManager = new SceneManager();
+sceneManager.loadProject(demoProject); // Load the project structure
+</code></pre>
+
+        <h3>Step 2.3: Loading & Activating Scenes</h3>
+        <p>To switch scenes, you typically need to coordinate `SceneManager` and `ObjectManager`.</p>
+        <ol>
+            <li>Destroy existing objects: Call a method on `ObjectManager` (e.g., `objectManager.clearAllObjects()`) to remove instances from the previous scene.</li>
+            <li>Load the new scene definition: Call `sceneManager.loadScene(newSceneName)`. This updates the `SceneManager`'s internal pointer to the current scene definition.</li>
+            <li>Create new objects: Get the new scene definition using `sceneManager.getCurrentScene()` and pass it to `objectManager.createObjectsForScene()` to instantiate the objects defined in the new scene's configuration.</li>
+        </ol>
+        <p>The `scene-manager-demo.ts` wraps this logic:</p>
+        <pre><code class="language-typescript">// filepath: src/scene-manager-demo.ts
+// Assuming sceneManager and objectManager are initialized
+
+function loadAndActivateScene(sceneName: string) {
+    updateStatus(`Attempting to load scene: ${sceneName}...`);
+
+    // 1. Destroy existing objects (ObjectManager should provide a method like this)
+    objectManager.clearAllObjects(); // Assuming this method exists
+
+    // 2. Load the new scene definition
+    if (sceneManager.loadScene(sceneName)) {
+        const currentScene = sceneManager.getCurrentScene();
+        if (currentScene) {
+            // 3. Create objects for the newly loaded scene
+            objectManager.createObjectsForScene(currentScene);
+            updateStatus(`Scene "${sceneName}" loaded successfully.`);
+        } else { /* Error handling */ }
+    } else { /* Error handling */ }
+}
+
+// Triggered by button clicks in the demo
+loadScene1Button.addEventListener('click', () => { loadAndActivateScene('scene1'); });
+loadScene2Button.addEventListener('click', () => { loadAndActivateScene('scene2'); });
+
+// Initial load
+loadAndActivateScene(demoProject.startScene);
+</code></pre>
+
+        <h3>Step 2.4: Engine Integration</h3>
+        <p>The `GameLoop` uses the `SceneManager` to ensure the correct scene is processed each frame.</p>
+        <pre><code class="language-typescript">// Inside GameLoop.loop method (simplified)
+loop(currentTime: number) {
+    // ... calculate deltaTime ...
+
+    // Get the currently active scene definition
+    const currentScene = this.sceneManager.getCurrentScene();
+    if (!currentScene) {
+        console.error("No active scene!");
+        this.stop();
+        return;
+    }
+
+    // Update input
+    this.inputManager.update();
+
+    // Update all active game objects (managed by ObjectManager)
+    this.objectManager.update(deltaTime);
+
+    // Render the current scene
+    this.renderer.renderScene(currentScene, this.objectManager, this.assetLoader, deltaTime);
+
+    // ... request next frame ...
+}
+</code></pre>
+
+        <h2>3. Advanced Usage & Examples</h2>
+
+        <h3>Scene Transitions</h3>
+        <p>The basic demo switches scenes instantly. Smoother transitions require extra logic:</p>
+        <ul>
+            <li><strong>Fade In/Out:</strong>
+                <ol>
+                    <li>Start Fade Out: Render a black rectangle on a top UI layer and increase its opacity from 0 to 1 over a short duration (e.g., 0.5 seconds).</li>
+                    <li>Switch Scene: Once fully faded out, perform the scene loading steps (destroy old objects, load new scene definition, create new objects). This happens instantly while the screen is black.</li>
+                    <li>Start Fade In: Decrease the black overlay's opacity from 1 to 0, revealing the new scene.</li>
+                </ol>
+            </li>
+            <li><strong>Loading Screens:</strong>
+                <ol>
+                    <li>Trigger Load: Initiate the scene switch.</li>
+                    <li>Show Loading UI: Pause the main game loop or switch to a simpler loop that only renders a loading screen (HTML or canvas).</li>
+                    <li>Load Assets: Asynchronously load any assets required specifically for the *next* scene using `AssetLoader`. Update the loading UI progress.</li>
+                    <li>Activate Scene: Once assets are loaded, perform the scene activation steps (`objectManager.clearAllObjects()`, `sceneManager.loadScene()`, `objectManager.createObjectsForScene()`).</li>
+                    <li>Hide Loading UI & Resume: Switch back to the main game loop.</li>
+                </ol>
+            </li>
+        </ul>
+
+        <h3>Passing Data Between Scenes</h3>
+        <p>Game state (like player score, health, inventory) often needs to persist across scene changes. The basic `SceneManager` doesn't handle this directly.</p>
+        <ul>
+            <li><strong>Global State Service:</strong> Create a dedicated class (e.g., `GameSession`, `PlayerData`) accessible globally or via dependency injection. Store persistent data there. Components can read/write to this service.</li>
+            <li><strong>Modify `loadScene`:</strong> Enhance `SceneManager.loadScene(sceneName, payload?)` to accept optional data. Store this payload. When `ObjectManager` creates components for the new scene, it could potentially pass this payload during component initialization.</li>
+            <li><strong>`localStorage`:</strong> Suitable for simple, non-critical data like high scores or basic settings. Less ideal for complex game state.</li>
+        </ul>
+
+        <h3>Dynamic Scene Modification</h3>
+        <p>While the demo uses static scene definitions loaded from the `Project`, you could extend `SceneManager` and `ObjectManager` to allow runtime modifications:</p>
+        <ul>
+            <li>`sceneManager.addObjectToCurrentScene(config: GameObjectConfig)`: Adds an object configuration to the current scene's definition.</li>
+            <li>`objectManager.createObject(config: GameObjectConfig)`: Instantiates a single object dynamically.</li>
+            <li>`sceneManager.removeObjectFromCurrentScene(objectId: string)`: Removes an object configuration.</li>
+            <li>`objectManager.destroyObject(objectId: string)`: Destroys an active object instance.</li>
+        </ul>
+        <p>This allows for spawning enemies, items, or effects dynamically during gameplay without predefining every single one in the scene configuration.</p>
+
+        <h2>4. How the "Scene Manager Demo" Works</h2>
+        <p>
+            The <a href="/scene-manager-demo">Scene Manager Demo</a> illustrates the basic process of defining multiple scenes within a project and switching between them using UI buttons.
+        </p>
+        <h3>HTML Structure (`scene-manager-demo.html`)</h3>
+        <ul>
+            <li>A <code>&lt;canvas id="game-canvas"&gt;</code> for rendering.</li>
+            <li>A <code>&lt;div id="status"&gt;</code> for displaying messages.</li>
+            <li>Two buttons: <code>&lt;button id="load-scene1-button"&gt;</code> and <code>&lt;button id="load-scene2-button"&gt;</code>.</li>
+        </ul>
+        <h3>Script Interaction (`scene-manager-demo.ts`)</h3>
+        <ul>
+            <li>Initializes core engine systems (`SceneManager`, `ObjectManager`, `Renderer`, `GameLoop`, `AssetLoader`, `InputManager`, `EventBus`).</li>
+            <li>Defines a `demoProject` object containing two scenes: `scene1` and `scene2`. Each scene has a 'main' layer and a few simple `GameObjectConfig`s with `SpriteComponent`s (using color names like 'red', 'blue' as placeholder `spriteRef`s).</li>
+            <li>Calls `sceneManager.loadProject(demoProject)` to load the scene definitions.</li>
+            <li>Defines a helper function `loadAndActivateScene(sceneName)` that:
+                <ol>
+                    <li>Calls `objectManager.clearAllObjects()` (assuming this method exists to remove old objects).</li>
+                    <li>Calls `sceneManager.loadScene(sceneName)` to set the active scene definition.</li>
+                    <li>Calls `objectManager.createObjectsForScene(sceneManager.getCurrentScene())` to create instances for the new scene.</li>
+                    <li>Updates the status message.</li>
+                </ol>
+            </li>
+            <li>Adds `click` event listeners to the two buttons, each calling `loadAndActivateScene` with either 'scene1' or 'scene2'.</li>
+            <li>Calls `loadAndActivateScene` initially with the `demoProject.startScene` ('scene1').</li>
+            <li>Overrides the `Renderer.drawObject` method to draw simple colored rectangles based on the placeholder `spriteRef` property, allowing visualization without actual image assets.</li>
+            <li>Starts the `GameLoop`. The loop continuously renders the objects associated with the currently active scene, as managed by `SceneManager` and `ObjectManager`.</li>
+        </ul>
+
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/scene-manager-demo.html</code></li>
+            <li><code>src/scene-manager-demo.ts</code></li>
+            <li><code>src/core/scene/SceneManager.ts</code></li>
+            <li><code>src/core/objects/ObjectManager.ts</code></li>
+            <li><code>src/core/engine/GameLoop.ts</code></li>
+            <li><code>src/core/rendering/Renderer.ts</code></li>
+            <li><code>src/types/project.ts</code> (Defines `Project`, `Scene`, `Layer`, `GameObjectConfig`)</li>
+        </ul>
+    </main>
+</body>
+</html>
