@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the AssetLoader Works</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        h1, h2, h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        code { background-color: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; border-radius: 4px; }
+        pre code { background-color: transparent; padding: 0; border-radius: 0; }
+        .container { max-width: 800px; margin: auto; }
+        a { color: #007bff; }
+        .note { background-color: #fffbe6; border-left: 4px solid #ffe58f; padding: 10px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>How the AssetLoader Works</h1>
+        <p><a href="/asset-loader-test">&laquo; Back to the Demo</a></p>
+
+        <h2>1. Understanding the AssetLoader</h2>
+        <p>
+            The <code>AssetLoader</code> is a fundamental engine system responsible for loading all external game assets required before the game can start or a scene can be displayed. Its primary role is to fetch and process various asset types based on a central configuration file, typically <code>manifest.json</code>.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To asynchronously load images, sounds, music, sprite sheet definitions, and potentially other data files (like level configurations).</li>
+            <li><strong>Role in Engine:</strong> It acts as a centralized repository for loaded assets, ensuring that other systems (like the <code>Renderer</code>, <code>SoundManager</code>, <code>AnimationComponent</code>) can access the assets they need by a simple key lookup. It prevents systems from needing to handle the complexities of asynchronous loading themselves.</li>
+            <li><strong>Core Mechanics:</strong>
+                <ul>
+                    <li>It first fetches and parses the <code>manifest.json</code> file.</li>
+                    <li>Based on the manifest content, it uses appropriate browser APIs to load each asset:
+                        <ul>
+                            <li>Images: Creates <code>HTMLImageElement</code> objects and sets their <code>src</code>.</li>
+                            <li>Sounds/Music: Uses the <code>fetch</code> API to get audio data as an <code>ArrayBuffer</code>, then decodes it using <code>AudioContext.decodeAudioData</code> into an <code>AudioBuffer</code>.</li>
+                            <li>Sprite Sheet Definitions/JSON: Uses <code>fetch</code> to get the JSON file content and parses it.</li>
+                        </ul>
+                    </li>
+                    <li>It stores successfully loaded assets in an internal <code>Map</code> (<code>loadedAssets</code>), keyed by the names defined in the manifest.</li>
+                    <li>It requires an instance of the browser's <code>AudioContext</code> to be passed during initialization to handle audio decoding.</li>
+                </ul>
+            </li>
+            <li><strong>Supporting Files/Concepts:</strong>
+                <ul>
+                    <li><code>public/assets/manifest.json</code>: The central JSON file defining asset keys and their corresponding file paths.</li>
+                    <li>Sprite Definition Files (e.g., <code>public/assets/defs/player_def.json</code>): JSON files describing sprite sheet layouts and animations.</li>
+                    <li>Actual Asset Files (e.g., <code>.png</code>, <code>.wav</code>, <code>.mp3</code>) located in the <code>public/assets/</code> subdirectories.</li>
+                    <li><code>AudioContext</code>: Required for processing sound and music files.</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Essential for managing game visuals, audio feedback, and complex sprite animations. Ensures all necessary resources are ready before being used, preventing errors and visual glitches.</li>
+        </ul>
+
+        <h2>2. Tutorial: Using the AssetLoader</h2>
+        <p>This tutorial demonstrates the typical workflow for using the <code>AssetLoader</code>, based on the <code>asset-loader-test.ts</code> example.</p>
+
+        <h3>Step 2.1: `manifest.json` Structure</h3>
+        <p>Define your assets in <code>public/assets/manifest.json</code>. Organize them by type (<code>images</code>, <code>sounds</code>, <code>spriteSheets</code>, <code>music</code>). Paths should be relative to the public root.</p>
+        <pre><code class="language-json">// filepath: public/assets/manifest.json
+{
+  "images": {
+    "playerShip": "/assets/images/player.png",
+    "enemyShip": "/assets/images/enemy.png",
+    "bullet1": "/assets/images/bullet1.png"
+  },
+  "sounds": {
+    "laserShoot": "/assets/sounds/shoot.wav",
+    "explosion": "/assets/sounds/explode.wav"
+  },
+  "spriteSheets": {
+    "playerSheet": "/assets/defs/player_def.json",
+    "bulletSheet": "/assets/defs/bullet1_def.json"
+  },
+  "music": {
+    "backgroundTheme": "/assets/music/Galactic Blitz.mp3"
+  }
+}</code></pre>
+
+        <h3>Step 2.2: Initialization</h3>
+        <p>Import <code>AssetLoader</code>. Create or obtain an <code>AudioContext</code> (resuming it on user interaction is recommended). Instantiate the <code>AssetLoader</code>, passing the context.</p>
+        <pre><code class="language-typescript">// filepath: src/your-game-setup.ts
+import { AssetLoader } from './core/assets/AssetLoader.js';
+
+let audioContext: AudioContext;
+try {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Resume context on first user interaction (click/keydown)
+    const resumeContext = () => {
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().catch(e => console.error("AudioContext resume failed:", e));
+        }
+        document.removeEventListener('click', resumeContext);
+        document.removeEventListener('keydown', resumeContext);
+    };
+    document.addEventListener('click', resumeContext);
+    document.addEventListener('keydown', resumeContext);
+} catch (e) {
+    console.error('Web Audio API is not supported.');
+    // Handle error appropriately - game might not run without audio
+    throw new Error('Web Audio API not supported.');
+}
+
+const assetLoader = new AssetLoader(audioContext);
+</code></pre>
+
+        <h3>Step 2.3: Loading Process</h3>
+        <p>Use an <code>async</code> function to manage the loading sequence. First, load the manifest, then load all assets defined within it. Use <code>try...catch</code> for error handling.</p>
+        <pre><code class="language-typescript">// filepath: src/your-game-setup.ts
+
+async function loadGameAssets(loader: AssetLoader, manifestUrl: string) {
+    console.log('Starting asset loading...');
+    try {
+        // 1. Load the Manifest
+        console.log(`Loading manifest from ${manifestUrl}...`);
+        const manifest = await loader.loadManifest(manifestUrl);
+        console.log('Manifest loaded successfully.');
+
+        // 2. Load All Assets defined in the Manifest
+        console.log('Loading all assets...');
+        await loader.loadAllAssets(manifest);
+        console.log('All assets loaded successfully.');
+
+    } catch (error: any) {
+        console.error(`Asset loading failed: ${error.message}`, error);
+        // Handle loading failure (e.g., show error message, stop game initialization)
+        throw error; // Re-throw or handle as needed
+    }
+}
+
+// --- Somewhere during game initialization ---
+// await loadGameAssets(assetLoader, '/assets/manifest.json');
+// --- Now assets are ready ---
+</code></pre>
+
+        <h3>Step 2.4: Accessing Assets</h3>
+        <p>After the <code>loadAllAssets</code> promise resolves successfully, retrieve assets using the <code>getAsset(key)</code> method, providing the key defined in the manifest. You can also access the internal <code>loadedAssets</code> map directly if needed.</p>
+        <pre><code class="language-typescript">// filepath: src/your-game-setup.ts or component
+
+// Assuming assetLoader has finished loading...
+
+// Get an image
+const playerImage = assetLoader.getAsset('playerShip') as HTMLImageElement | undefined;
+if (playerImage) {
+    // Use the image (e.g., in Renderer or SpriteComponent)
+}
+
+// Get a sound buffer
+const shootSound = assetLoader.getAsset('laserShoot') as AudioBuffer | undefined;
+if (shootSound) {
+    // Use the buffer (e.g., in SoundManager)
+}
+
+// Get a sprite sheet definition
+const playerDef = assetLoader.getAsset('playerSheet') as SpriteDefinition | undefined;
+if (playerDef) {
+    // Use the definition (e.g., in AnimationComponent or SpriteComponent)
+}
+
+// Accessing the map directly (less common)
+// const allLoaded = assetLoader.loadedAssets;
+// console.log(`Total assets loaded: ${allLoaded.size}`);
+</code></pre>
+
+        <h3>Step 2.5: Cleanup</h3>
+        <p>The <code>AssetLoader</code> itself typically doesn't require explicit cleanup (like removing event listeners). However, managing the lifecycle of the associated <code>AudioContext</code> (closing it when the game/application exits) might be necessary in a larger application context, though often the browser handles this when the page unloads.</p>
+
+        <h2>3. Advanced Usage & Features</h2>
+        <ul>
+            <li><strong>Loading Progress:</strong> While the current implementation uses <code>Promise.all</code> internally for concurrent loading, it doesn't expose fine-grained progress tracking. Future enhancements could involve adding callbacks or events to monitor the loading progress of individual assets or overall completion percentage.</li>
+            <li><strong>Error Handling:</strong> <code>loadAllAssets</code> attempts to load all assets. If some fail, errors are logged to the console, but the promise might still resolve if the manifest itself loaded correctly. More robust error handling could involve collecting individual asset failures and allowing the game to decide whether to proceed.</li>
+            <li><strong>Asset Types:</strong> The loader could be extended to support other asset types, such as generic JSON configuration files, fonts, or video files, by adding appropriate loading logic based on manifest sections or file extensions.</li>
+            <li><strong>Caching:</strong> The browser often handles caching of fetched resources (images, JSON, audio). The `AssetLoader` doesn't implement an additional caching layer itself but benefits from browser caching.</li>
+        </ul>
+
+        <h2>4. How the "AssetLoader Test" Demo Works</h2>
+        <p>
+            The <a href="/asset-loader-test">AssetLoader Test demo</a> specifically tests and visualizes the entire asset loading workflow driven by the <code>/assets/manifest.json</code> file. It provides feedback on each step of the process.
+        </p>
+        <h3>HTML Structure (`asset-loader-test.html`)</h3>
+        <ul>
+            <li><code>&lt;button id="load-button"&gt;</code>: Initiates the loading process when clicked.</li>
+            <li><code>&lt;div id="status"&gt;</code>: Displays the current overall status (Idle, Loading, Loaded, Error).</li>
+            <li><code>&lt;pre id="manifest-content"&gt;</code>: Shows the raw JSON content of the loaded manifest file.</li>
+            <li><code>&lt;pre id="log"&gt;</code>: Provides a detailed, step-by-step log of the loading actions (fetching manifest, loading individual assets, success/failure messages).</li>
+            <li><code>&lt;div id="loaded-assets"&gt;</code>: Displays a summary of successfully loaded assets after the process completes, including thumbnails for images.</li>
+        </ul>
+        <h3>Script Interaction (`asset-loader-test.ts`)</h3>
+        <ul>
+            <li>The script gets references to all the HTML elements mentioned above.</li>
+            <li>It initializes the <code>AudioContext</code> (with resume logic) and the <code>AssetLoader</code>.</li>
+            <li>It defines helper functions <code>log()</code> and <code>updateStatus()</code> to write messages to the corresponding HTML elements.</li>
+            <li>An event listener is attached to the "Load Assets" button, which calls the main <code>async function runAssetLoaderTest()</code>.</li>
+            <li>Inside <code>runAssetLoaderTest()</code>:
+                <ul>
+                    <li>It clears previous logs and resets status displays.</li>
+                    <li>It calls <code>assetLoader.loadManifest()</code>.</li>
+                    <li>If successful, it displays the manifest content in the <code>manifest-content</code> element.</li>
+                    <li>It then calls <code>assetLoader.loadAllAssets()</code> with the loaded manifest data.</li>
+                    <li>Throughout the process, it uses the <code>log()</code> and <code>updateStatus()</code> helpers to provide feedback.</li>
+                    <li>Upon completion (or error), it calls <code>displayLoadedAssets()</code>.</li>
+                </ul>
+            </li>
+            <li>The <code>displayLoadedAssets()</code> function iterates through the <code>assetLoader.loadedAssets</code> map. For each asset, it determines its type (Image, AudioBuffer, SpriteDefinition) and appends a descriptive entry (including an image thumbnail for images) to the <code>loaded-assets</code> div.</li>
+        </ul>
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/asset-loader-test.html</code></li>
+            <li><code>src/asset-loader-test.ts</code></li>
+            <li><code>src/core/assets/AssetLoader.ts</code></li>
+            <li><code>public/assets/manifest.json</code></li>
+            <li>Various asset files under <code>public/assets/</code> (images, sounds, defs, music) referenced by the manifest.</li>
+            <li><code>src/types/project.ts</code> (for AssetManifest, SpriteDefinition types)</li>
+            <li><code>src/types/core.ts</code> (for Asset type)</li>
+        </ul>
+    </div>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the InputManager Works</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        h1, h2, h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        code { background-color: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; border-radius: 4px; }
+        pre code { background-color: transparent; padding: 0; border-radius: 0; }
+        .container { max-width: 800px; margin: auto; }
+        a { color: #007bff; }
+        .note { background-color: #fffbe6; border-left: 4px solid #ffe58f; padding: 10px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>How the InputManager Works</h1>
+        <p><a href="/input-manager-test">&laquo; Back to the Demo</a></p>
+
+        <h2>1. Understanding the InputManager</h2>
+        <p>
+            The <code>InputManager</code> is the engine's central system for handling user input from the keyboard and mouse. Its primary responsibilities are:
+        </p>
+        <ul>
+            <li>Capturing raw input events (key presses, mouse movements, button clicks) from the browser.</li>
+            <li>Maintaining the current state of input devices (which keys are down, current mouse position relative to a target, which mouse buttons are pressed).</li>
+            <li>Publishing specific input events (e.g., <code>keyDown</code>, <code>mouseMove</code>) via the <code>EventBus</code> for other systems to react to.</li>
+        </ul>
+        <p>
+            Internally, the <code>InputManager</code> attaches event listeners (like <code>keydown</code>, <code>keyup</code>, <code>mousemove</code>, <code>mousedown</code>, <code>mouseup</code>, <code>contextmenu</code>) to either the browser `window` (for global keyboard input) or a specified HTML target element (often the game canvas, for mouse input relative to that element). When events occur, it updates internal state variables, typically <code>Set</code> objects for keys and mouse buttons (<code>keysDown</code>, <code>mouseButtonsDown</code>) and an object for the relative mouse position (<code>mousePosition</code>). It calculates the relative mouse position using the event's coordinates and the target element's position obtained via <code>getBoundingClientRect()</code>. When a state change is detected (e.g., a key is pressed that wasn't down before), it constructs an appropriate event object using creator functions (like <code>createInputEvent</code>) and publishes it through the injected <code>EventBus</code> instance. This allows other systems, like player controllers or UI elements, to respond to input without being directly coupled to the <code>InputManager</code>.
+        </p>
+        <p>
+            This system is crucial for player control, UI interaction, and any game mechanic that relies on user input.
+        </p>
+
+        <h2>2. Tutorial: Using the InputManager</h2>
+        <p>This tutorial demonstrates how to set up and use the <code>InputManager</code>, based on the patterns used in the engine and the <code>input-manager-test.ts</code> demo.</p>
+
+        <h3>Step 2.1: HTML Target</h3>
+        <p>
+            The <code>InputManager</code> needs a target element for mouse events to calculate relative coordinates. This is typically your game's <code>&lt;canvas&gt;</code> element. If the element needs to receive keyboard focus directly (less common, as keyboard events are usually global), add <code>tabindex="0"</code>.
+        </p>
+        <pre><code class="language-html">&lt;!-- Example: Game Canvas --&gt;
+&lt;canvas id="game-canvas" width="800" height="600" tabindex="0"&gt;&lt;/canvas&gt;</code></pre>
+
+        <h3>Step 2.2: Initialization</h3>
+        <p>Import the necessary classes and instantiate them. The <code>InputManager</code> requires the target HTML element and an instance of the <code>EventBus</code>.</p>
+        <pre><code class="language-typescript">// filepath: src/your-game-setup.ts
+import { InputManager } from './core/input/InputManager.js';
+import { EventBus } from './core/events/EventBus.js';
+
+const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+if (!canvas) {
+    throw new Error('Canvas element not found!');
+}
+
+const eventBus = new EventBus();
+const inputManager = new InputManager(canvas, eventBus); // Pass canvas and eventBus
+
+// The inputManager is now listening for events.
+</code></pre>
+
+        <h3>Step 2.3: Getting Input State (Polling)</h3>
+        <p>
+            In your game loop or component update methods, you can directly ask the <code>InputManager</code> for the current state. This is useful for continuous actions like movement.
+        </p>
+        <pre><code class="language-typescript">// filepath: src/core/components/PlayerControllerComponent.ts
+import { InputManager } from '../input/InputManager.js'; // Assuming InputManager is injected or accessible
+
+// Inside the component's update(deltaTime) method:
+// Assume 'this.inputManager' holds the InputManager instance
+
+const moveDirection = { x: 0, y: 0 };
+if (this.inputManager.isKeyDown('KeyW') || this.inputManager.isKeyDown('ArrowUp')) {
+    moveDirection.y = -1;
+} else if (this.inputManager.isKeyDown('KeyS') || this.inputManager.isKeyDown('ArrowDown')) {
+    moveDirection.y = 1;
+}
+// ... handle left/right similarly ...
+
+// Apply movement based on moveDirection and deltaTime
+
+const mousePos = this.inputManager.getMousePosition();
+// Use mousePos.x, mousePos.y for aiming, UI interaction, etc.
+
+if (this.inputManager.isMouseButtonDown(0)) { // Check left mouse button
+    // Handle primary action (e.g., shooting)
+}
+</code></pre>
+
+        <h3>Step 2.4: Reacting to Input Events (Event-Driven)</h3>
+        <p>
+            For actions that happen only once per press (like jumping, opening a menu, or firing a single shot), it's often better to subscribe to events published by the <code>InputManager</code> via the <code>EventBus</code>. This avoids running the check in every frame.
+        </p>
+        <pre><code class="language-typescript">// filepath: src/your-game-setup.ts or relevant component
+import { EventBus } from './core/events/EventBus.js';
+import { AppEvent, InputEvent } from './core/events/EventTypes.js'; // Import event types
+
+// Assume 'eventBus' is the shared EventBus instance
+
+const unsubscribeKeyDown = eventBus.subscribe('keyDown', (event) => {
+    // Use a type guard or assertion to access specific payload
+    if (event.type === 'keyDown') {
+        const key = event.payload.code; // Access payload safely
+        if (key === 'Space') {
+            console.log('Space bar pressed!');
+            // Trigger jump action, fire weapon, etc.
+        } else if (key === 'Escape') {
+            // Pause game, open menu, etc.
+        }
+    }
+});
+
+const unsubscribeMouseDown = eventBus.subscribe('mouseDown', (event) => {
+    if (event.type === 'mouseDown') {
+        const button = event.payload.button; // 0=left, 1=middle, 2=right
+        const position = event.payload.position; // {x, y} relative to target
+        console.log(`Mouse button ${button} pressed at ${position.x}, ${position.y}`);
+        // Handle UI clicks, placing objects, etc.
+    }
+});
+
+// IMPORTANT: Remember to call unsubscribeKeyDown() and unsubscribeMouseDown() during cleanup!
+</code></pre>
+
+        <h3>Step 2.5: Cleanup</h3>
+        <p>
+            To prevent memory leaks, the <code>InputManager</code> needs to remove its internal event listeners when it's no longer needed (e.g., when the game ends or the page unloads). Call its <code>destroy()</code> method.
+        </p>
+        <pre><code class="language-typescript">// filepath: src/your-game-setup.ts
+
+// Example: Cleanup when the browser window is about to close
+window.addEventListener('beforeunload', () => {
+    inputManager.destroy();
+    // Also unsubscribe any event listeners you created
+    // unsubscribeKeyDown();
+    // unsubscribeMouseDown();
+    eventBus.clearListeners(); // Or clear specific listeners
+});
+</code></pre>
+
+        <h2>3. Advanced Usage & Features</h2>
+        <ul>
+            <li>
+                <strong>Target Element vs. Window:</strong> While mouse events are typically tied to a specific element (like the canvas), keyboard events are usually captured globally on the `window`. The `InputManager` handles this distinction internally.
+            </li>
+            <li>
+                <strong>`update()` Method:</strong> The `InputManager` has an `update()` method intended to be called once per game loop. While currently minimal in this engine version, it's reserved for future features like gamepad polling, which requires periodic checks rather than relying solely on browser events.
+            </li>
+            <li>
+                <strong>Event Payload:</strong> The events published by `InputManager` (e.g., `keyDown`, `mouseMove`) contain relevant payload data like the key code, mouse coordinates, button index, etc., accessible within the event listener callback.
+            </li>
+        </ul>
+
+        <h2>4. How the "InputManager Test" Demo Works</h2>
+        <p>
+            The purpose of the <a href="/input-manager-test">InputManager Test demo</a> is to provide a direct, real-time visualization of the <strong>internal state</strong> being managed by the <code>InputManager</code>. It's a debugging and verification tool.
+        </p>
+        <h3>HTML Structure (`input-manager-test.html`)</h3>
+        <ul>
+            <li><code>&lt;pre id="keys-down"&gt;</code>: Displays the current set of pressed keyboard key codes.</li>
+            <li><code>&lt;pre id="mouse-pos"&gt;</code>: Displays the calculated mouse X, Y coordinates relative to the blue box.</li>
+            <li><code>&lt;pre id="mouse-buttons"&gt;</code>: Displays the current set of pressed mouse button indices.</li>
+            <li><code>&lt;div id="target"&gt;</code>: The blue box element passed as the target to the <code>InputManager</code> for mouse events. It has <code>tabindex="0"</code> to allow it to receive focus, although keyboard events are still captured globally.</li>
+            <li><code>&lt;div id="mouse-display"&gt;</code>: A small overlay positioned inside the blue box that mirrors the current mouse coordinates.</li>
+        </ul>
+        <h3>Script Interaction (`input-manager-test.ts`)</h3>
+        <ul>
+            <li>The script initializes an <code>EventBus</code> and an <code>InputManager</code>, targeting the blue `target` div.</li>
+            <li>It defines an <code>updateDisplay</code> function that runs continuously using <code>requestAnimationFrame</code>.</li>
+            <li>Inside <code>updateDisplay</code>:
+                <ul>
+                    <li>It directly accesses the <strong>private</strong> internal state of the `inputManager` instance (using `(inputManager as any).keysDown` and `(inputManager as any).mouseButtonsDown`). This is done **specifically for visualization in this demo** and is **not** the standard way to use the `InputManager` in the engine (which involves public methods like `isKeyDown` or subscribing to events).</li>
+                    <li>It calls the public `inputManager.getMousePosition()` method to get the relative coordinates.</li>
+                    <li>It updates the <code>textContent</code> of the various <code>&lt;pre&gt;</code> elements with the retrieved state information.</li>
+                    <li>It updates the CSS `left` and `top` styles of the `mouse-display` overlay to position it according to the mouse coordinates within the blue box.</li>
+                </ul>
+            </li>
+            <li>A `beforeunload` listener calls `inputManager.destroy()` for cleanup.</li>
+        </ul>
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/input-manager-test.html</code></li>
+            <li><code>src/input-manager-test.ts</code></li>
+            <li><code>src/core/input/InputManager.ts</code></li>
+            <li><code>src/core/events/EventBus.ts</code></li>
+            <li><code>src/core/events/EventTypes.ts</code></li>
+        </ul>
+    </div>
+</body>
+</html>

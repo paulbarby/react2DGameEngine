@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the Collision System Works</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        h1, h2, h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        code { background-color: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; border-radius: 4px; }
+        pre code { background-color: transparent; padding: 0; border-radius: 0; }
+        .container { max-width: 800px; margin: auto; }
+        a { color: #007bff; }
+        .note { background-color: #fffbe6; border-left: 4px solid #ffe58f; padding: 10px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>How the Collision System Works</h1>
+        <p><a href="/collision-demo">&laquo; Back to the Demo</a></p>
+
+        <h2>1. Understanding the Collision System</h2>
+        <p>
+            The <code>CollisionSystem</code> is responsible for detecting when `GameObject`s overlap in the game world. It enables interactions like bullets hitting targets, players collecting items, or characters bumping into walls.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To identify pairs of game objects that are physically intersecting based on their defined collision shapes.</li>
+            <li><strong>Role in Engine:</strong> It operates within the main `GameLoop`. It queries the `ObjectManager` to get the positions and collision properties of relevant objects. When a collision is detected, it publishes a `collisionDetected` event via the `EventBus`. For pixel-perfect checks, it relies on the `AssetLoader` to provide image data.</li>
+            <li><strong>Core Mechanics:</strong>
+                <ul>
+                    <li>The `CollisionSystem.update()` method is called once per frame by the `GameLoop`.</li>
+                    <li>It retrieves all active `GameObject`s that possess a `CollisionComponent`.</li>
+                    <li>It iterates through potential collision pairs, first checking if their `group` and `collidesWith` properties (defined in `CollisionComponent`) permit an interaction. This acts as a broad filter.</li>
+                    <li>For permitted pairs, it performs a narrowphase check based on the `shape` property ('rectangle' or 'circle') defined in their `CollisionComponent`s. This usually involves Axis-Aligned Bounding Box (AABB) intersection tests for rectangles or distance checks for circles.</li>
+                    <li>(Optional) If both components have `usePixelPerfect: true` and an initial overlap is found, the system requests the relevant image data from the `AssetLoader` and performs a more expensive pixel-by-pixel comparison within the overlapping area.</li>
+                    <li>If a collision is confirmed (either by shape overlap or subsequent pixel check), the system creates a `CollisionEvent` containing references to the two colliding objects and publishes it using `eventBus.publish()`.</li>
+                </ul>
+            </li>
+            <li><strong>Supporting Files/Concepts:</strong>
+                <ul>
+                    <li><code>CollisionComponent</code>: Attached to `GameObject`s, defines their shape (`rectangle`/`circle`), dimensions (`width`/`height`/`radius`), offset, collision group (`group`), interaction mask (`collidesWith`), and pixel-perfect option (`usePixelPerfect`).</li>
+                    <li><code>EventBus</code>: Used to broadcast `collisionDetected` events.</li>
+                    <li><code>CollisionEvent</code>: The event object containing the pair of colliding `GameObject`s.</li>
+                    <li><code>GameObject</code>: Provides position, rotation, scale, and holds the `CollisionComponent`.</li>
+                    <li><code>ObjectManager</code>: Provides access to the list of active game objects.</li>
+                    <li><code>AssetLoader</code>: Required to access image data for pixel-perfect checks.</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Fundamental for most gameplay interactions, enabling physics-based responses, damage systems, triggers, and environmental interactions.</li>
+        </ul>
+
+        <h2>2. Tutorial: Using the Collision System</h2>
+        <p>This tutorial shows how to set up objects for collision detection and handle the resulting events, based on the <code>collision-demo.ts</code> example.</p>
+
+        <h3>Step 2.1: Adding `CollisionComponent`</h3>
+        <p>Attach a <code>CollisionComponent</code> to any `GameObject` that should participate in collisions. Configure its properties within the `GameObjectConfig`.</p>
+        <pre><code class="language-typescript">// filepath: src/your-scene-setup.ts (within GameObjectConfig)
+{
+    id: 'player', name: 'Player', type: 'player',
+    x: 100, y: 100, layerId: 'main',
+    components: [
+        { type: 'SpriteComponent', properties: { /* ... */ } },
+        {
+            type: 'CollisionComponent',
+            properties: {
+                shape: 'rectangle', // 'rectangle' or 'circle'
+                width: 32,          // Required for 'rectangle'
+                height: 48,         // Required for 'rectangle'
+                // radius: 24,      // Required for 'circle'
+                offsetX: 0,         // Optional: Offset from GameObject's origin (default 0)
+                offsetY: 0,         // Optional: Offset from GameObject's origin (default 0)
+                group: 'player',    // String identifier for this object's type
+                collidesWith: ['enemy', 'powerup', 'wall'], // Array of groups it can collide with
+                usePixelPerfect: false // Optional: Enable pixel check (requires loaded image, performance cost)
+            }
+        },
+        // ... other components
+    ]
+}
+</code></pre>
+        <div class="note">
+            <strong>Note:</strong> The `group` is a label for the object itself. `collidesWith` is a list of other groups this object should check against. A collision only occurs if Object A's group is in Object B's `collidesWith` list AND Object B's group is in Object A's `collidesWith` list.
+        </div>
+
+        <h3>Step 2.2: Integrating `CollisionSystem`</h3>
+        <p>Instantiate the <code>CollisionSystem</code>, providing its dependencies. Ensure its `update()` method is called within your main game loop after object positions have been updated.</p>
+        <pre><code class="language-typescript">// filepath: src/your-main-game-file.ts
+import { CollisionSystem } from './core/physics/CollisionSystem.js';
+import { ObjectManager } from './core/objects/ObjectManager.js';
+import { AssetLoader } from './core/assets/AssetLoader.js';
+import { EventBus } from './core/events/EventBus.js';
+import { GameLoop } from './core/engine/GameLoop.js';
+// ... other imports ...
+
+// Assuming objectManager, assetLoader, eventBus are initialized...
+const collisionSystem = new CollisionSystem(objectManager, assetLoader, eventBus);
+
+// Assuming gameLoop is initialized...
+// Modify the game loop's update cycle to include collisionSystem.update()
+// Example: Overriding or extending the loop method
+const originalLoop = (gameLoop as any).loop;
+(gameLoop as any).loop = (currentTime: number) => {
+    originalLoop(currentTime); // Calls input update, object update, render
+    collisionSystem.update();  // Call collision check AFTER objects have moved
+};
+
+gameLoop.start();
+</code></pre>
+
+        <h3>Step 2.3: Handling Collision Events</h3>
+        <p>Subscribe to the <code>'collisionDetected'</code> event on the `EventBus`. The callback function will receive a `CollisionEvent` containing the two colliding objects.</p>
+        <pre><code class="language-typescript">// filepath: src/your-main-game-file.ts or relevant system
+import { EventBus } from './core/events/EventBus.js';
+import { CollisionEvent } from './core/events/EventTypes.js';
+import { CollisionComponent } from './core/components/CollisionComponent.js';
+import { ObjectManager } from './core/objects/ObjectManager.js'; // To destroy objects
+import { SoundManager } from './core/sound/SoundManager.js'; // To play sounds
+
+// Assuming eventBus, objectManager, soundManager are initialized...
+
+const unsubscribeCollision = eventBus.subscribe('collisionDetected', (event) => {
+    const collisionEvent = event as CollisionEvent; // Type assertion
+    const objA = collisionEvent.objectA;
+    const objB = collisionEvent.objectB;
+
+    // IMPORTANT: Check if objects still exist in the manager before processing
+    if (!objectManager.getObjectById(objA.id) || !objectManager.getObjectById(objB.id)) {
+        return; // One or both objects were already destroyed this frame
+    }
+
+    const compA = objA.getComponent(CollisionComponent);
+    const compB = objB.getComponent(CollisionComponent);
+
+    // Ensure both have collision components (should always be true if system works)
+    if (!compA || !compB) return;
+
+    console.log(`Collision detected between ${objA.name} (${compA.group}) and ${objB.name} (${compB.group})`);
+
+    // --- Example: Bullet hitting an Enemy ---
+    if ((compA.group === 'bullet' && compB.group === 'enemy') || (compA.group === 'enemy' && compB.group === 'bullet')) {
+        console.log('Bullet hit enemy!');
+        // Destroy both bullet and enemy
+        objectManager.destroyObject(objA.id);
+        objectManager.destroyObject(objB.id);
+        soundManager.playSound('explosion'); // Play explosion sound
+        // Add score, trigger explosion animation, etc.
+    }
+    // --- Example: Player hitting a Powerup ---
+    else if ((compA.group === 'player' && compB.group === 'powerup') || (compA.group === 'powerup' && compB.group === 'player')) {
+        const powerup = compA.group === 'powerup' ? objA : objB;
+        console.log('Player collected powerup!');
+        objectManager.destroyObject(powerup.id); // Destroy the powerup
+        soundManager.playSound('pickup');
+        // Apply powerup effect to player
+    }
+    // Add more collision handling logic as needed...
+});
+
+// Remember to call unsubscribeCollision() during cleanup!
+</code></pre>
+
+        <h3>Step 2.4: Pixel-Perfect Collisions</h3>
+        <p>To enable more accurate collision detection for non-rectangular shapes, set `usePixelPerfect: true` in the `CollisionComponent` properties for <strong>both</strong> objects involved. Ensure the image assets referenced by their `SpriteComponent`s are correctly loaded via the `AssetLoader`. Be aware that this significantly increases the performance cost of collision checks.</p>
+
+        <h3>Step 2.5: Cleanup</h3>
+        <p>When a scene is unloaded or the game exits, make sure to unsubscribe any collision event listeners you created to prevent memory leaks. Call the function returned by `eventBus.subscribe()`.</p>
+        <pre><code class="language-typescript">// During cleanup phase (e.g., scene unload, game exit)
+unsubscribeCollision();
+</code></pre>
+
+        <h2>3. Advanced Usage & Features</h2>
+        <ul>
+            <li><strong>Collision Groups & Masks (`group`, `collidesWith`):</strong> These are powerful tools for optimization and defining interaction rules. By assigning objects to logical groups ('player', 'enemy', 'bullet', 'wall', 'item') and specifying which groups they can interact with (`collidesWith`), you prevent unnecessary checks. For example, bullets might only need to check against 'enemy' and 'wall', not against other bullets or the player.</li>
+            <li><strong>Collision Shapes:</strong>
+                <ul>
+                    <li>`rectangle`: Uses Axis-Aligned Bounding Box (AABB) checks. Fast and simple, suitable for most cases, especially if objects don't rotate or if slight inaccuracies at corners are acceptable.</li>
+                    <li>`circle`: Uses distance checks between centers. Good for objects that are roughly circular. Also relatively fast.</li>
+                </ul>
+            </li>
+            <li><strong>Pixel Perfect Trade-offs:</strong> Use `usePixelPerfect: true` sparingly. It's ideal for main characters or critical interactions where the visual shape matters precisely (e.g., platformer character landing on a complex platform). Avoid it for numerous objects like particles or simple background elements where AABB is sufficient. It requires loaded image data and involves iterating over pixels, making it much slower than shape-based checks.</li>
+            <li><strong>Optimization (Potential):</strong> For scenes with hundreds or thousands of collidable objects, a simple pair-wise check becomes too slow. Advanced techniques like spatial partitioning (e.g., Quadtrees, Grids, Spatial Hashing) can drastically reduce the number of pairs that need checking. These are <strong>not</strong> typically implemented in a basic collision system but are important concepts for scaling.</li>
+        </ul>
+
+        <h2>4. How the "Collision Demo" Works</h2>
+        <p>
+            The <a href="/collision-demo">Collision Demo</a> provides a practical example of setting up and handling collisions between different types of objects.
+        </p>
+        <h3>HTML Structure (`collision-demo.html`)</h3>
+        <ul>
+            <li><code>&lt;canvas id="game-canvas"&gt;</code>: The main rendering surface for the game objects.</li>
+            <li><code>&lt;div id="status"&gt;</code>: A text element used to display messages when collisions involving the player occur.</li>
+        </ul>
+        <h3>Script Interaction (`collision-demo.ts`)</h3>
+        <ul>
+            <li><strong>Initialization:</strong> It sets up all core engine systems: `EventBus`, `AssetLoader`, `InputManager`, `ObjectManager`, `SceneManager`, `Renderer`, `SoundManager` (though sounds might not be heavily used in the collision logic itself), `CollisionSystem`, and `GameLoop`.</li>
+            <li><strong>Object Creation:</strong> It defines `GameObjectConfig` data for:
+                <ul>
+                    <li>A 'player' object with `SpriteComponent`, `PlayerControllerComponent` (or similar for movement), and `CollisionComponent` (group: 'player', collidesWith: ['enemy']).</li>
+                    <li>Several static 'obstacle' objects with `SpriteComponent` and `CollisionComponent` (group: 'obstacle', collidesWith: ['player']).</li>
+                    <li>Optionally, a moving 'obstacle' object, adding a `MovementComponent`.</li>
+                </ul>
+                These configurations are used by `ObjectManager` to create the actual `GameObject` instances.
+            </li>
+            <li><strong>Input Handling:</strong> It subscribes to `keyDown` and `keyUp` events from the `EventBus` (published by `InputManager`). The callbacks modify the `velocity` property of the player's `MovementComponent` to allow user control.</li>
+            <li><strong>Collision Handling:</strong> It subscribes to the `collisionDetected` event from the `EventBus`. The callback function checks if the colliding pair involves objects with 'player' and 'obstacle' groups. If a match is found, it updates the `textContent` of the `status` div with a confirmation message and logs details to the console.</li>
+            <li><strong>Game Loop Integration:</strong> It ensures that `collisionSystem.update()` is called once per frame within the main game loop, typically after all objects have updated their positions via their `MovementComponent`s or other logic.</li>
+        </ul>
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/collision-demo.html</code></li>
+            <li><code>src/collision-demo.ts</code></li>
+            <li><code>src/core/physics/CollisionSystem.ts</code></li>
+            <li><code>src/core/components/CollisionComponent.ts</code></li>
+            <li><code>src/core/events/EventBus.ts</code></li>
+            <li><code>src/core/events/EventTypes.ts</code> (specifically `CollisionEvent`)</li>
+            <li><code>src/core/objects/GameObject.ts</code></li>
+            <li><code>src/core/objects/ObjectManager.ts</code></li>
+            <li><code>src/core/engine/GameLoop.ts</code></li>
+            <li>Assets referenced in `manifest.json` (e.g., player/enemy images).</li>
+        </ul>
+    </div>
+</body>
+</html>
