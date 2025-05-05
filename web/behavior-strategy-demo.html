@@ -4,20 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Behavior Strategy Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
-        body { font-family: sans-serif; padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: #111; color: #eee;}
+        body { font-family: sans-serif; padding: 0; margin: 0;  align-items: center; background-color: #111; color: #eee;}
         #game-canvas { border: 1px solid #555; background-color: #000; margin-top: 10px; }
-        p { margin: 5px 0 10px 0; }
+        p { margin: 5px 0 10px 0; color: black;}
         #status { margin-top: 10px; font-style: italic; color: #aaa; }
     </style>
 </head>
 <body>
+    <!-- Add Standard Header -->
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
     <h1>Behavior Strategy Demo</h1>
     <p>Demonstrates AI switching between Wander, Chase, and Attack strategies.</p>
     <p>Click the canvas, use Arrows/WASD to move the player.</p>
     <canvas id="game-canvas" width="800" height="600" tabindex="0">Your browser does not support the canvas element.</canvas>
     <div id="status">Loading...</div>
-
+</main>
     <script type="module" src="/dist/behavior-strategy-demo.js"></script>
 </body>
 </html>

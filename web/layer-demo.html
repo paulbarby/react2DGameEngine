@@ -1,22 +1,35 @@
+<!-- filepath: d:\Work\Fun\Space Shooter Game Engine\web\layer-demo.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Layer System Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
-        body { font-family: sans-serif; padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; }
-        #game-canvas { border: 1px solid #ccc; background-color: #fff; margin-top: 10px; }
-        p { margin: 5px 0 10px 0; }
-        #status { margin-top: 10px; font-style: italic; color: #333; }
+        /* Adjust canvas background if needed */
+        #game-canvas { background-color: #d3d3d3; }
+        #status { margin-top: 10px; font-style: italic; text-align: center; }
     </style>
 </head>
 <body>
-    <h1>Layer System Demo</h1>
-    <p>Objects are rendered according to their layer's depth value (lower depth = further back).</p>
-    <canvas id="game-canvas" width="600" height="400" tabindex="0">Your browser does not support the canvas element.</canvas>
-    <div id="status">Loading...</div>
+    <!-- Add Standard Header -->
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
 
-    <script type="module" src="/dist/layer-demo.js"></script>
+    <!-- Wrap content -->
+    <main class="content-container">
+        <h1>Layer System Demo</h1>
+        <p style="text-align: center;">Objects are rendered according to their layer's depth value (lower depth = further back).</p>
+        <p style="text-align: center;">Use Arrow Keys to scroll layers with parallax effect.</p>
+        <canvas id="game-canvas" width="600" height="400" tabindex="0">Your browser does not support the canvas element.</canvas>
+        <div id="status">Loading...</div>
+
+        <script type="module" src="/dist/layer-demo.js"></script>
+    </main>
 </body>
 </html>

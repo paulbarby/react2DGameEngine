@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InputManager Test</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
+
     <style>
         /* ... existing styles ... */
         body { font-family: sans-serif; padding: 20px; }
@@ -13,6 +15,15 @@
     </style>
 </head>
 <body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
     <h1>InputManager Test</h1>
     <p style="text-align: center; margin-top: -10px; margin-bottom: 20px;"><a href="/how-to/input-manager-test-howto.html">How this demo works</a></p>
     <p>Focus this window/element and interact with your keyboard and mouse.</p>
@@ -35,7 +46,7 @@
         <div id="mouse-display">Mouse Pos: 0, 0</div>
         <p style="padding: 10px;">Click inside this blue box to focus, then use keyboard/mouse.</p>
     </div>
-
+    </main>
     <!-- Updated script path to compiled JS in dist -->
     <script type="module" src="/dist/input-manager-test.js"></script>
 </body>

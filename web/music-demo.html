@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Music Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
         body { font-family: sans-serif; padding: 20px; }
         .controls button, .controls input, .controls label { margin: 5px; padding: 8px; }
@@ -11,6 +12,16 @@
     </style>
 </head>
 <body>
+     <!-- Add Standard Header -->
+     <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
     <h1>Music Demo</h1>
     <p>Uses SoundManager to play streaming music.</p>
     <div class="controls">
@@ -29,7 +40,7 @@
         <span id="volume-value">100</span>
     </div>
     <div id="status">Status: Idle. Click Play Selected (requires user interaction first).</div>
-
+    </main> 
     <script type="module" src="/dist/music-demo.js"></script>
 </body>
 </html>
