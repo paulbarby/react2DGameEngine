@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Systems Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>UI Systems Guide</h1>
+        <p><a href="/main-menu-demo">&laquo; Back to the Main Menu Demo</a></p>
+
+        <h2>1. Understanding UI Systems</h2>
+        <p>
+            User Interface (UI) is crucial for player interaction and feedback. In game development, UI typically falls into two categories:
+        </p>
+        <ul>
+            <li><strong>Out-of-Game UI:</strong> Menus displayed outside the main gameplay loop, such as the main menu, options screen, level select, or high score tables. These are often static or have simple interactions.</li>
+            <li><strong>In-Game UI (HUD - Heads-Up Display):</strong> Elements displayed during gameplay, providing real-time information like score, health, ammo, mini-maps, or interaction prompts.</li>
+        </ul>
+        <p>Different implementation strategies suit each type:</p>
+        <ul>
+            <li><strong>HTML/CSS/DOM (for Out-of-Game UI):</strong> Leveraging standard web technologies is often the easiest way to build complex menus and forms. JavaScript handles interactions (button clicks, slider changes) and can communicate with engine systems (like `SettingsManager` or `SceneManager`). The <a href="/main-menu-demo">Main Menu Demo</a> uses this approach.</li>
+            <li><strong>HTML Overlays (for In-Game UI):</strong> Placing HTML elements absolutely positioned over the game canvas. Good for text-heavy elements or forms, but can be harder to synchronize perfectly with canvas rendering and may have performance implications if complex.</li>
+            <li><strong>Canvas Rendering (for In-Game UI):</strong> Drawing UI elements directly onto the game canvas using engine components like `SpriteComponent` and `TextComponent`. These elements are treated like other `GameObject`s, placed on specific UI layers. This approach integrates seamlessly with the engine's rendering pipeline and coordinate system but requires more manual layout and interaction handling.</li>
+        </ul>
+        <h3>Core Concepts</h3>
+        <ul>
+            <li><strong>DOM Manipulation:</strong> Using JavaScript to find HTML elements (`getElementById`, `querySelector`), add event listeners (`addEventListener`), and change styles or content.</li>
+            <li><strong>CSS:</strong> Styling HTML elements, controlling layout, and managing visibility (e.g., `display: none;`).</li>
+            <li><strong>Event Listeners (DOM):</strong> Responding to user interactions like clicks, mouse movements, input changes on HTML elements.</li>
+            <li><strong>Event Bus:</strong> Used by canvas-rendered UI to react to game state changes (e.g., `scoreChanged`, `playerHealthChanged`) published by other systems.</li>
+            <li><strong><code>SettingsManager</code>:</strong> Used to load/save UI-related settings like volume, accessed by both HTML UI (e.g., options menu) and potentially the engine (e.g., `SoundManager`).</li>
+            <li><strong><code>Renderer</code> & Layers:</strong> When rendering UI on canvas, a dedicated `Layer` with a high `depth` value ensures UI elements draw on top of gameplay.</li>
+            <li><strong><code>TextComponent</code> / <code>SpriteComponent</code>:</strong> Used to represent text labels, icons, health bars, etc., when rendering UI on canvas.</li>
+        </ul>
+
+        <h2>2. Tutorial: Building UI</h2>
+
+        <h3>Part A: Out-of-Game Menu (HTML/DOM Approach)</h3>
+        <p>This approach is demonstrated by the <a href="/main-menu-demo">Main Menu Demo</a>.</p>
+        <ol>
+            <li><strong>HTML Structure (`main-menu-demo.html`):</strong>
+                <ul>
+                    <li>Create buttons for main actions (`<button id="start-button">`).</li>
+                    <li>Create container divs for panels (`<div id="options-panel" class="panel">`). Initially hide panels using CSS (`display: none;`).</li>
+                    <li>Inside panels, add relevant controls (sliders, checkboxes, text, close buttons). Use `data-*` attributes on close buttons to link them to their panel (`data-panel="options-panel"`).</li>
+                </ul>
+            </li>
+            <li><strong>CSS Styling (`styles/main.css`):</strong>
+                <ul>
+                    <li>Style the buttons, panels, and controls for appearance.</li>
+                    <li>Define the `.panel` class with `display: none;` by default.</li>
+                    <li>Style specific elements as needed (e.g., `.menu-container`, `.menu-options button`).</li>
+                </ul>
+            </li>
+            <li><strong>JavaScript Logic (`main-menu-demo.ts`):</strong>
+                <ul>
+                    <li>Get references to all interactive HTML elements using `document.getElementById` or `document.querySelectorAll`.</li>
+                    <li>Create helper functions `showPanel(panel)` and `hidePanel(panel)` that change the `display` style.</li>
+                    <li>Add `click` event listeners to main menu buttons to show the corresponding panels or trigger actions (like `alert('Starting Game...')`).</li>
+                    <li>Add `click` event listeners to close buttons to hide their associated panel (using the `data-panel` attribute).</li>
+                    <li>Add `input` or `change` event listeners to controls within panels (e.g., volume slider, toggles).</li>
+                    <li>Inside option listeners, interact with engine systems. For example, read the volume slider value, convert it, and call `settingsManager.setMasterVolume()`.</li>
+                    <li>Load initial settings from `SettingsManager` and set the initial state of UI controls (e.g., set slider position based on loaded volume).</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>Part B: In-Game HUD (Canvas Rendering Approach)</h3>
+        <p>This involves creating UI elements as `GameObject`s rendered by the engine.</p>
+        <ol>
+            <li><strong>Define UI Layer:</strong> In your `Scene` configuration, add a `Layer` with a high `depth` value to ensure it renders on top.
+                <pre><code class="language-typescript">// In Scene definition
+layers: [
+    { id: 'background', name: 'Background', depth: 0, visible: true },
+    { id: 'gameplay', name: 'Gameplay', depth: 10, visible: true },
+    { id: 'ui', name: 'User Interface', depth: 100, visible: true } // High depth
+]</code></pre>
+            </li>
+            <li><strong>Create UI GameObjects:</strong> Define `GameObjectConfig` for each UI element, assigning them to the `ui` layer.
+                <ul>
+                    <li><strong>Score Display:</strong> Use `TextComponent`. Position it using `x`, `y`.
+                        <pre><code class="language-typescript">// In Scene.objects array
+{
+    id: 'scoreDisplay', name: 'Score Display', type: 'ui_text',
+    x: 10, y: 30, // Top-left corner
+    layerId: 'ui',
+    components: [
+        { type: 'TextComponent', properties: {
+            text: 'Score: 0',
+            font: '24px Arial',
+            color: 'white',
+            anchor: { x: 0, y: 0.5 } // Anchor top-left
+        }}
+        // Add a custom component to listen for score updates
+        // { type: 'ScoreDisplayController', properties: {} }
+    ]
+}</code></pre>
+                    </li>
+                    <li><strong>Health Bar:</strong> Use two overlapping `SpriteComponent`s (or one with clever drawing).
+                        <pre><code class="language-typescript">// In Scene.objects array
+{
+    id: 'healthBarBg', name: 'Health Bar Background', type: 'ui_sprite',
+    x: 10, y: 50, layerId: 'ui',
+    components: [
+        { type: 'SpriteComponent', properties: {
+            spriteRef: 'healthBarBgImage', // Key for background image/color
+            width: 100, height: 15,
+            anchor: { x: 0, y: 0.5 }
+        }}
+    ]
+},
+{
+    id: 'healthBarFill', name: 'Health Bar Fill', type: 'ui_sprite',
+    x: 10, y: 50, layerId: 'ui', // Same position as background
+    components: [
+        { type: 'SpriteComponent', properties: {
+            spriteRef: 'healthBarFillImage', // Key for fill image/color
+            width: 100, height: 15, // Initial full width
+            anchor: { x: 0, y: 0.5 }
+        }}
+        // Add a custom component to listen for health updates
+        // { type: 'HealthBarController', properties: { maxWidth: 100 } }
+    ]
+}</code></pre>
+                    </li>
+                </ul>
+            </li>
+            <li><strong>Update UI from Game State:</strong>
+                <ul>
+                    <li>Create custom components (e.g., `ScoreDisplayController`, `HealthBarController`) for your UI GameObjects.</li>
+                    <li>Inject the `EventBus` into these components.</li>
+                    <li>In the component's `init` method, subscribe to relevant game events (e.g., `scoreChanged`, `playerHealthChanged`).</li>
+                    <li>In the event callback, get the corresponding display component (`TextComponent` or `SpriteComponent`) from the `gameObject` and update its properties (e.g., `textComponent.text = \`Score: ${event.payload.newScore}\``; `spriteComponent.width = event.payload.currentHealth / event.payload.maxHealth * this.maxWidth`).</li>
+                    <li>Alternatively, the component's `update` method could periodically check game state (e.g., query player health directly) and update the display components, though this is often less efficient than using events.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2>3. Advanced Usage & Considerations</h2>
+        <ul>
+            <li><strong>Responsiveness:</strong> HTML/CSS offers mature solutions (flexbox, grid, media queries). Canvas UI requires manual calculation based on canvas size, which can be complex.</li>
+            <li><strong>Interaction (Canvas):</strong> Handling clicks/hovers on canvas UI requires mapping mouse coordinates (from `InputManager`) to the bounding boxes of UI `GameObject`s. You might need a dedicated UI interaction system.</li>
+            <li><strong>Performance:</strong> Many complex HTML elements overlaid can impact performance. Many individual canvas draw calls for UI can also be slow. Optimize canvas UI by using sprite sheets for icons/borders and minimizing text rendering calls.</li>
+            <li><strong>State Synchronization:</strong> Keeping UI consistent with the game state is vital. Event-driven updates (using the `EventBus`) are generally preferred over polling in the `update` loop.</li>
+            <li><strong>External Libraries:</strong> For complex canvas UI, libraries exist (e.g., Dat.GUI for debug, or more complex immediate-mode GUI libraries), but integrating them requires extra effort. This engine focuses on built-in components and HTML/DOM.</li>
+        </ul>
+
+        <h2>4. How the "Main Menu Demo" Works</h2>
+        <p>
+            The <a href="/main-menu-demo">Main Menu Demo</a> uses the HTML/DOM approach for a typical out-of-game menu.
+        </p>
+        <h3>HTML Structure (`main-menu-demo.html`)</h3>
+        <ul>
+            <li>Contains buttons (`#start-button`, `#options-button`, etc.) for primary actions.</li>
+            <li>Includes hidden divs (`#scores-panel`, `#options-panel`) with the class `panel`.</li>
+            <li>Options panel contains controls like &lt;input type="range" id="volume-slider"&gt;</li>
+            <li>Close buttons within panels have a `data-panel` attribute identifying the panel they belong to.</li>
+        </ul>
+        <h3>Script Interaction (`main-menu-demo.ts`)</h3>
+        <ul>
+            <li>Gets references to all buttons, panels, and controls using their IDs.</li>
+            <li>Initializes a `SettingsManager` and loads settings asynchronously.</li>
+            <li>Initializes UI controls (like the volume slider) based on the loaded settings.</li>
+            <li>Attaches `click` event listeners to the main buttons. These listeners either show the relevant panel (using `showPanel`) or display an alert (for Start/Exit).</li>
+            <li>Attaches `click` listeners to all elements with the `.close-button` class. These listeners read the `data-panel` attribute and call `hidePanel` on the corresponding panel.</li>
+            <li>Attaches an `input` event listener to the volume slider. When the slider changes, it reads the value, converts it to a 0.0-1.0 range, and calls `settingsManager.setMasterVolume()`.</li>
+            <li>Helper functions `showPanel`, `hidePanel`, and `hideAllPanels` manage the `display` style of the panel elements.</li>
+        </ul>
+
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/main-menu-demo.html</code></li>
+            <li><code>src/main-menu-demo.ts</code></li>
+            <li><code>web/styles/main.css</code> (Contains `.panel`, `.menu-container`, etc. styles)</li>
+            <li><code>src/core/settings/SettingsManager.ts</code> (Used for loading/saving options)</li>
+            <li><code>src/core/rendering/Renderer.ts</code> (Relevant for canvas UI)</li>
+            <li><code>src/core/components/TextComponent.ts</code> (Relevant for canvas UI)</li>
+            <li><code>src/core/components/SpriteComponent.ts</code> (Relevant for canvas UI)</li>
+            <li><code>src/types/project.ts</code> (Defines `Layer`, `Scene`)</li>
+            <li><code>src/core/events/EventBus.ts</code> (Relevant for canvas UI updates)</li>
+        </ul>
+    </main>
+</body>
+</html>

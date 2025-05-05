@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layer System Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>Layer System Guide</h1>
+        <p><a href="/layer-demo">&laquo; Back to the Layer Demo</a></p>
+
+        <h2>1. Understanding the Layer System</h2>
+        <p>
+            The Layer System controls the rendering order of `GameObject`s within a scene. Objects on layers with a lower `depth` value are drawn first (further back), while objects on layers with a higher `depth` value are drawn later (closer to the front). Layers also provide a way to group objects logically (e.g., background, main gameplay, UI) and potentially apply effects or transformations to entire groups.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To manage the visual stacking order of game elements and enable effects like parallax scrolling.</li>
+            <li><strong>Role in Engine:</strong> The `SceneManager` holds the layer definitions for the current scene. The `ObjectManager` associates `GameObject` instances with their designated layers. The `Renderer` uses the layer information, specifically the `depth` property, to determine the correct drawing sequence.</li>
+            <li><strong>Core Concepts:</strong>
+                <ul>
+                    <li><strong><code>Layer</code> Interface (in `types/project.ts`):</strong> Defines the structure of a layer, including `id` (unique identifier), `name`, `depth` (numeric value for sorting), and `visible` (boolean flag).</li>
+                    <li><strong><code>Scene</code> Definition (in `types/project.ts`):</strong> Contains an array of `Layer` definitions.</li>
+                    <li><strong><code>GameObjectConfig.layerId</code>:</strong> Each game object configuration specifies the `id` of the layer it belongs to.</li>
+                    <li><strong><code>Renderer.renderScene()</code>:</strong> This method retrieves the layers from the current scene, sorts them by their `depth` property, and then iterates through the sorted layers. For each visible layer, it retrieves the associated game objects from the `ObjectManager` and draws them.</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Essential for creating visual depth and ensuring elements like UI appear on top of gameplay elements, and backgrounds appear behind everything else.</li>
+        </ul>
+
+        <h2>2. Tutorial: Using Layers</h2>
+        <p>Setting up layers involves defining them in your scene configuration and assigning objects to them.</p>
+
+        <h3>Step 2.1: Define Layers in Scene Configuration</h3>
+        <p>In your `Scene` definition (typically created when setting up your `Project` data), include an array of `Layer` objects. Assign unique `id`s and appropriate `depth` values.</p>
+        <pre><code class="language-typescript">// filepath: src/your-scene-setup.ts (within Project definition)
+import { Project, Scene, Layer } from './types/project.js';
+
+const myLayers: Layer[] = [
+    { id: 'background', name: 'Background', depth: 0, visible: true }, // Drawn first
+    { id: 'gameplay', name: 'Gameplay', depth: 10, visible: true },   // Drawn after background
+    { id: 'ui', name: 'User Interface', depth: 20, visible: true }     // Drawn last (on top)
+];
+
+const myScene: Scene = {
+    id: 'myScene01',
+    name: 'My First Scene',
+    layers: myLayers,
+    objects: [ /* ... GameObjectConfigs go here ... */ ]
+};
+
+const myProject: Project = {
+    startScene: myScene.id,
+    scenes: { [myScene.id]: myScene }
+};
+</code></pre>
+
+        <h3>Step 2.2: Assign `layerId` to Game Objects</h3>
+        <p>In each `GameObjectConfig` within the scene's `objects` array, set the `layerId` property to the `id` of the desired layer.</p>
+        <pre><code class="language-typescript">// filepath: src/your-scene-setup.ts (within Scene.objects array)
+[
+    // Background object
+    {
+        id: 'bg_image', name: 'Background Image', type: 'sprite',
+        x: 0, y: 0,
+        layerId: 'background', // Assign to background layer
+        components: [ { type: 'SpriteComponent', properties: { spriteRef: 'backgroundImageKey' } } ]
+    },
+    // Player object
+    {
+        id: 'player', name: 'Player', type: 'player',
+        x: 100, y: 100,
+        layerId: 'gameplay', // Assign to gameplay layer
+        components: [ /* ... player components ... */ ]
+    },
+    // Score display object
+    {
+        id: 'score_text', name: 'Score Text', type: 'text',
+        x: 10, y: 10,
+        layerId: 'ui', // Assign to UI layer
+        components: [ { type: 'TextComponent', properties: { text: 'Score: 0', font: '16px Arial', color: 'white' } } ]
+    }
+]
+</code></pre>
+
+        <h3>Step 2.3: Engine Processing</h3>
+        <p>No further explicit steps are usually needed for basic layering.</p>
+        <ul>
+            <li>The `SceneManager` loads the scene, including its layer definitions.</li>
+            <li>The `ObjectManager` creates `GameObject` instances and stores their `layerId`.</li>
+            <li>The `Renderer`, during its `renderScene` call:
+                <ol>
+                    <li>Gets the current scene's layers from `SceneManager`.</li>
+                    <li>Sorts the layers based on their `depth` (ascending).</li>
+                    <li>For each layer:
+                        <ul>
+                            <li>Checks if `layer.visible` is true.</li>
+                            <li>Gets all `GameObject`s belonging to that `layer.id` from `ObjectManager`.</li>
+                            <li>Draws each of those objects.</li>
+                        </ul>
+                    </li>
+                </ol>
+            </li>
+        </ul>
+        <p>This ensures objects are drawn in the correct back-to-front order according to their layer's depth.</p>
+
+        <h2>3. Advanced Usage: Parallax Scrolling (as in `layer-demo.ts`)</h2>
+        <p>
+            The `layer-demo.ts` script demonstrates parallax scrolling by extending the basic layer concept. Parallax creates an illusion of depth by making background layers scroll slower than foreground layers. This is achieved by:
+        </p>
+        <ol>
+            <li><strong>Extending Layer Data:</strong> Adding custom properties (`scrollOffsetX`, `scrollOffsetY`, `parallaxFactor`) to the layer definitions within the demo script. `parallaxFactor` determines how much the layer scrolls relative to input (e.g., 0.2 means it scrolls at 20% of the speed of a layer with factor 1.0).</li>
+            <li><strong>Overriding `Renderer.renderScene()`:</strong> The demo replaces the default `renderScene` method with a custom version. This overridden method:
+                <ul>
+                    <li>Still sorts layers by depth.</li>
+                    <li>Before drawing objects on a specific layer, it applies a `ctx.translate(layer.scrollOffsetX, layer.scrollOffsetY)` transformation. This shifts the origin for drawing everything on that layer.</li>
+                    <li>Uses `ctx.save()` before the translation and `ctx.restore()` after drawing the layer's objects to isolate the effect to that layer.</li>
+                </ul>
+            </li>
+            <li><strong>Updating Offsets Based on Input:</strong> The demo's game loop checks for arrow key input via the `InputManager`. If keys are pressed, it calculates a scroll delta based on time (`deltaTime`) and a base `scrollSpeed`. It then updates each layer's `scrollOffsetX` and `scrollOffsetY` by `delta * layer.parallaxFactor`.</li>
+        </ol>
+        <p>This combination means that when arrow keys are pressed, layers with smaller `parallaxFactor` values update their offsets less, causing them to move slower on screen, creating the parallax effect.</p>
+        <div class="note">
+            <strong>Note:</strong> This parallax implementation is specific to the `layer-demo.ts` script and involves modifying the standard `Renderer` behavior. A production engine might integrate this more formally, perhaps via camera systems or specialized layer components.
+        </div>
+
+        <h2>4. How the "Layer Demo" Works</h2>
+        <p>
+            The <a href="/layer-demo">Layer Demo</a> specifically visualizes the rendering order and the parallax effect.
+        </p>
+        <h3>HTML Structure (`layer-demo.html`)</h3>
+        <ul>
+            <li><code>&lt;canvas id="game-canvas"&gt;</code>: The rendering surface.</li>
+            <li><code>&lt;div id="status"&gt;</code>: Displays loading status and instructions.</li>
+        </ul>
+        <h3>Script Interaction (`layer-demo.ts`)</h3>
+        <ul>
+            <li><strong>Initialization:</strong> Sets up core systems (`AssetLoader`, `InputManager`, `ObjectManager`, `SceneManager`, `Renderer`, `GameLoop`, `EventBus`).</li>
+            <li><strong>Scene Definition:</strong> Defines a scene with multiple layers (`background`, `middle`, `foreground`), each assigned a `depth` and custom properties (`scrollOffsetX`, `scrollOffsetY`, `parallaxFactor`).</li>
+            <li><strong>Object Creation:</strong> Creates simple placeholder `GameObject`s (using `SpriteComponent` with color names as `spriteRef` for the demo's modified renderer) and assigns them to different layers using `layerId`.</li>
+            <li><strong>Renderer Modification:</strong> Overrides the `Renderer.drawObject` method to draw simple colored rectangles with labels instead of actual sprites. Crucially, it overrides `Renderer.renderScene` to apply the `scrollOffsetX` and `scrollOffsetY` translations for each layer before drawing its objects.</li>
+            <li><strong>Game Loop Extension:</strong> Overrides the `GameLoop.loop` method. After calling the original loop logic (which includes rendering), it checks `InputManager` for arrow key states. If keys are pressed, it updates the `scrollOffsetX` and `scrollOffsetY` of each layer in the current scene based on `deltaTime`, `scrollSpeed`, and the layer's `parallaxFactor`.</li>
+        </ul>
+
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/layer-demo.html</code></li>
+            <li><code>src/layer-demo.ts</code></li>
+            <li><code>src/core/rendering/Renderer.ts</code> (Specifically the `renderScene` method logic)</li>
+            <li><code>src/core/scene/SceneManager.ts</code></li>
+            <li><code>src/core/objects/ObjectManager.ts</code></li>
+            <li><code>src/types/project.ts</code> (Defines `Layer`, `Scene`, `GameObjectConfig`)</li>
+            <li><code>src/core/engine/GameLoop.ts</code></li>
+            <li><code>src/core/input/InputManager.ts</code></li>
+        </ul>
+    </main>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Sprite Usage Guide</title>
+    <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+    <main class="content-container">
+        <h1>Advanced Sprite Usage Guide</h1>
+        <p><a href="/advanced-sprite-demo">&laquo; Back to the Advanced Sprite Demo</a></p>
+
+        <h2>1. Understanding Advanced Sprites</h2>
+        <p>
+            Building upon the <a href="/how-to/sprite-guide.html">Sprite Configuration Guide</a>, this guide delves into more dynamic and efficient ways to handle visuals using sprite sheets, animations, and precise positioning with anchors. These techniques are essential for creating lively characters and optimizing rendering performance.
+        </p>
+        <ul>
+            <li><strong>Purpose:</strong> To leverage sprite sheets for animations and visual variety, control animation playback, and precisely define object origins using anchors.</li>
+            <li><strong>Role in Engine:</strong> The <code>SpriteComponent</code> remains central for defining the visual source. The <code>AnimationComponent</code> works alongside it to cycle through frames defined in a sprite sheet definition. The <code>Renderer</code> uses information from both components, along with the <code>anchor</code> property, to draw the correct frame at the correct position and orientation. The <code>AssetLoader</code> is responsible for loading the sprite sheet images and their JSON definitions (`_def.json`).</li>
+            <li><strong>Core Concepts:</strong>
+                <ul>
+                    <li><strong><code>SpriteComponent</code>:</strong> Holds the reference (`spriteRef`) to the visual asset (image key or `sheetKey/spriteName`), dimensions (`width`, `height`), and positioning `anchor`. Its `currentSpriteName` property can be updated, often by an `AnimationComponent`.</li>
+                    <li><strong><code>SpriteDefinition</code> (`_def.json`):</strong> Defines the layout of a sprite sheet, mapping sprite names (e.g., "idle", "run1") to coordinates, and defining named animations.</li>
+                    <li><strong><code>AnimationComponent</code>:</strong> Manages the playback of animations defined in a `SpriteDefinition`. It updates the associated `SpriteComponent`'s `currentSpriteName` property over time based on the selected animation's frames and duration.</li>
+                    <li><strong><code>AnimationDefinition</code> (within `_def.json`):</strong> Specifies a sequence of sprite names (`frames`), the total `duration` (in seconds), and whether it should `loop`.</li>
+                    <li><strong><code>anchor</code> Property (in `SpriteComponent.properties`):</strong> A normalized coordinate `{ x: number, y: number }` defining the origin point of the sprite relative to its own bounding box. `(0, 0)` is top-left, `(0.5, 0.5)` is center, `(1, 1)` is bottom-right. This affects how the `GameObject`'s `x, y` coordinates are interpreted for drawing and how rotations are applied.</li>
+                </ul>
+            </li>
+            <li><strong>Importance:</strong> Essential for character animation, creating visual effects (explosions, projectiles), managing visual states efficiently, and ensuring accurate positioning and rotation.</li>
+        </ul>
+
+        <h2>2. Tutorial: Using Advanced Sprites</h2>
+
+        <h3>Step 2.1: Sprite Sheet & Manifest Setup</h3>
+        <p>Define your sprite sheets and add them to the manifest.</p>
+        <ol>
+            <li><strong>Create Definition (`_def.json`):</strong> For each sprite sheet image (e.g., `player.png`, `bullet1.png`), create a corresponding JSON definition file (e.g., `player_def.json`, `bullet1_def.json`) in `public/assets/defs/`.
+                <pre><code class="language-json">// Example: public/assets/defs/player_def.json
+{
+  "image": "playerShip", // Key of the image in manifest.json
+  "frameWidth": 64,
+  "frameHeight": 96,
+  "sprites": { // Map names to top-left coordinates
+    "idle": { "x": 0, "y": 0 },
+    "thrust": { "x": 64, "y": 0 }
+  },
+  "animations": { // Optional animation definitions
+    "flying": {
+      "frames": ["idle", "thrust"], // Sequence of sprite names
+      "duration": 0.5, // Total time for one cycle
+      "loop": true // Repeat automatically
+    }
+  }
+}</code></pre>
+                <pre><code class="language-json">// Example: public/assets/defs/bullet1_def.json
+{
+  "image": "bullet1",
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "sprites": {
+    "frame1": { "x": 0, "y": 0 },
+    "frame2": { "x": 0, "y": 16 },
+    "frame3": { "x": 0, "y": 32 },
+    "frame4": { "x": 0, "y": 46 } // Note: Y might not be perfectly aligned if sheet has padding
+  },
+  "animations": {
+    "default": { // A common name for the primary animation
+      "frames": ["frame1","frame2","frame3","frame4"],
+      "duration": 0.1, // Fast animation
+      "loop": true
+    }
+  }
+}</code></pre>
+            </li>
+            <li><strong>Update Manifest (`manifest.json`):</strong> Ensure the sprite sheet image is listed under `images` and the definition file is listed under `spriteSheets`.
+                <pre><code class="language-json">// filepath: public/assets/manifest.json
+{
+  "images": {
+    "playerShip": "/assets/images/player.png",
+    "enemyShip": "/assets/images/enemy.png",
+    "enemy2Ship": "/assets/images/enemy2.png",
+    "bullet1": "/assets/images/bullet1.png",
+    // ... other images
+  },
+  "spriteSheets": {
+    "playerSheet": "/assets/defs/player_def.json",
+    "enemySheet": "/assets/defs/enemy_def.json",
+    "enemy2Sheet": "/assets/defs/enemy2_def.json",
+    "bulletSheet": "/assets/defs/bullet1_def.json",
+    // ... other sheets
+  },
+  // ... sounds, music ...
+}</code></pre>
+            </li>
+        </ol>
+
+        <h3>Step 2.2: Using Sprite Sheets in `SpriteComponent`</h3>
+        <p>Reference a specific sprite from a sheet using the `"sheetKey/spriteName"` format in `spriteRef`.</p>
+        <pre><code class="language-typescript">// In GameObjectConfig components array
+{
+    type: 'SpriteComponent',
+    properties: {
+        spriteRef: 'playerSheet/idle', // Use 'idle' sprite from 'playerSheet'
+        anchor: { x: 0.5, y: 0.5 }   // Set anchor to center (optional but common)
+        // width/height usually omitted, taken from frameWidth/frameHeight in def
+    }
+}</code></pre>
+        <p>The `Renderer` uses the `sheetKey` ("playerSheet") to find the definition, gets the `frameWidth`/`frameHeight`, looks up the coordinates for `spriteName` ("idle"), finds the associated `image` ("playerShip"), and draws the correct portion of the image.</p>
+
+        <h3>Step 2.3: Implementing Animations</h3>
+        <p>Combine `SpriteComponent` and `AnimationComponent` to play animations defined in the sprite sheet.</p>
+        <pre><code class="language-typescript">// In GameObjectConfig components array (e.g., for a bullet)
+{
+    type: 'SpriteComponent',
+    properties: {
+        spriteRef: 'bulletSheet/frame1', // Initial frame
+        anchor: { x: 0.5, y: 0.5 }
+    }
+},
+{
+    type: 'AnimationComponent',
+    properties: {
+        // assetLoader is injected automatically by ObjectManager
+        defaultAnimation: 'default' // Play the 'default' animation from bulletSheet on start
+    }
+}</code></pre>
+        <p><strong>Workflow:</strong></p>
+        <ol>
+            <li>`AnimationComponent` is initialized, looks up the `defaultAnimation` ("default") in the `SpriteDefinition` associated with the `SpriteComponent`'s `sheetKey` ("bulletSheet").</li>
+            <li>On each `update(deltaTime)`, `AnimationComponent` calculates which frame (`frame1`, `frame2`, etc.) should be displayed based on elapsed time, `duration`, and `frames` array.</li>
+            <li>It updates `spriteComponent.currentSpriteName` with the calculated frame name.</li>
+            <li>`Renderer` uses `spriteComponent.currentSheetKey` and the updated `spriteComponent.currentSpriteName` to draw the correct animation frame.</li>
+        </ol>
+
+        <h3>Step 2.4: Controlling Animations Programmatically</h3>
+        <p>Other components can dynamically change the currently playing animation.</p>
+        <pre><code class="language-typescript">// Inside another component's update method (e.g., PlayerControllerComponent)
+// Assume 'this.animComp' holds a reference to the AnimationComponent instance
+// Assume 'this.movementComp' holds a reference to a MovementComponent
+
+const isMoving = Math.abs(this.movementComp.velocity.x) > 0.1 || Math.abs(this.movementComp.velocity.y) > 0.1;
+
+if (isMoving && this.animComp.currentAnimationName !== 'flying') {
+    this.animComp.play('flying'); // Play the 'flying' animation (defined in player_def.json)
+} else if (!isMoving && this.animComp.currentAnimationName !== 'idle') {
+    // If 'idle' is defined as an animation (even single frame), play it
+    // this.animComp.play('idle');
+    // Alternatively, if 'idle' is just a static sprite, stop the animation
+    // and manually set the sprite name:
+    this.animComp.stop(); // Stop current animation playback
+    const spriteComp = this.gameObject?.getComponent(SpriteComponent);
+    if (spriteComp) {
+        spriteComp.currentSpriteName = 'idle'; // Manually set back to idle sprite
+    }
+}
+</code></pre>
+
+        <h3>Step 2.5: Using Anchors for Positioning/Rotation</h3>
+        <p>The `anchor` property defines the sprite's origin point relative to its frame, affecting placement and rotation.</p>
+        <ul>
+            <li><code>anchor: { x: 0, y: 0 }</code> (Top-Left): The `GameObject`'s `x, y` corresponds to the top-left corner of the sprite frame. Rotations pivot around this corner.</li>
+            <li><code>anchor: { x: 0.5, y: 0.5 }</code> (Center): The `GameObject`'s `x, y` corresponds to the center of the sprite frame. Rotations pivot around the center. This is often the most intuitive setting for player ships, characters, etc.</li>
+            <li><code>anchor: { x: 0.5, y: 1 }</code> (Bottom-Center): The `GameObject`'s `x, y` corresponds to the middle of the bottom edge. Useful for characters standing on a platform where `y` represents the foot position.</li>
+        </ul>
+        <pre><code class="language-typescript">// In SpriteComponent properties
+properties: {
+    spriteRef: 'playerSheet/idle',
+    anchor: { x: 0.5, y: 0.5 } // Position and rotate around the center
+}</code></pre>
+        <p>The `Renderer` uses the anchor when drawing: `ctx.translate(gameObject.x, gameObject.y); ctx.rotate(gameObject.rotation); ctx.drawImage(..., -frameWidth * anchor.x, -frameHeight * anchor.y, ...);`</p>
+
+        <h2>3. Advanced Usage & Examples</h2>
+
+        <h3>Multiple Sprite Types (Visual Variety)</h3>
+        <p>The `advanced-sprite-demo.ts` demonstrates assigning different sprites to enemies randomly during creation:</p>
+        <pre><code class="language-typescript">// Inside advanced-sprite-demo.ts main function
+const enemySpriteRefs = ['enemySheet/idle', 'enemy2Sheet/idle']; // Possible appearances
+
+for (let i = 0; i < numEnemies; i++) {
+    const randomSpriteRef = enemySpriteRefs[Math.floor(Math.random() * enemySpriteRefs.length)];
+    // ... create GameObjectConfig ...
+    components: [
+        { type: 'SpriteComponent', properties: {
+            spriteRef: randomSpriteRef, // Assign the random sprite
+            anchor: { x: 0.5, y: 0.5 }
+        }},
+        // ... other components ...
+    ]
+    // ...
+}</code></pre>
+
+        <h3>Dynamic Sprite Changes (Non-Animation)</h3>
+        <p>Change a sprite instantly to reflect a state change, like showing damage or switching weapons.</p>
+        <pre><code class="language-typescript">// Inside a component reacting to a 'damageTaken' event
+handleDamage() {
+    const spriteComp = this.gameObject?.getComponent(SpriteComponent);
+    if (spriteComp) {
+        // Option 1: Switch to a different sprite on the *same* sheet
+        spriteComp.currentSpriteName = 'damaged'; // Assuming 'damaged' sprite exists in the definition
+
+        // Option 2: Switch to a sprite on a *different* sheet (or a direct image)
+        // spriteComp.spriteRef = 'explosionSheet/frame1'; // Start an explosion
+        // spriteComp.spriteRef = 'shieldIcon'; // Change to a different visual entirely
+    }
+    // Optionally, set a timer to revert the sprite change
+    setTimeout(() => {
+        if (spriteComp) spriteComp.currentSpriteName = 'idle';
+    }, 500);
+}</code></pre>
+
+        <h3>Non-Looping Animations (e.g., Explosions)</h3>
+        <p>Define animations with `loop: false` in the `_def.json`. To handle actions upon completion (like destroying the object), the `AnimationComponent` could potentially emit an event or have a callback.</p>
+        <pre><code class="language-json">// In explosion_def.json
+"animations": {
+  "explode": {
+    "frames": ["exp1", "exp2", "exp3", "exp4", "exp5"],
+    "duration": 0.4,
+    "loop": false // Play only once
+  }
+}</code></pre>
+        <pre><code class="language-typescript">// Component that creates an explosion object
+createExplosion(x: number, y: number) {
+    const explosionConfig: GameObjectConfig = {
+        id: `explosion_${Date.now()}`, name: 'Explosion', type: 'effect',
+        x: x, y: y, layerId: 'effects',
+        components: [
+            { type: 'SpriteComponent', properties: { spriteRef: 'explosionSheet/exp1', anchor: {x:0.5, y:0.5} }},
+            { type: 'AnimationComponent', properties: { defaultAnimation: 'explode' }},
+            // Add a component to handle cleanup after animation
+            { type: 'DestroyAfterAnimationComponent', properties: { animationName: 'explode' }}
+        ]
+    };
+    this.objectManager.createObject(explosionConfig);
+}
+
+// --- In DestroyAfterAnimationComponent.ts (Conceptual) ---
+// Needs AnimationComponent and EventBus injected or accessible
+init() {
+    this.animComp = this.gameObject?.getComponent(AnimationComponent);
+    // Subscribe to an 'animationEnded' event (IF AnimationComponent emits one)
+    this.unsubscribe = this.eventBus?.subscribe('animationEnded', (event) => {
+        if (event.payload.gameObjectId === this.gameObject?.id &&
+            event.payload.animationName === this.properties.animationName) {
+            this.objectManager?.destroyObject(this.gameObject.id);
+        }
+    });
+    // OR poll in update (less ideal)
+}
+update(deltaTime: number) {
+    // Alternative polling method (if no event exists)
+    if (this.animComp && !this.animComp.isPlaying && this.animComp.currentAnimationName === this.properties.animationName) {
+         this.objectManager?.destroyObject(this.gameObject.id);
+    }
+}
+destroy() {
+    this.unsubscribe?.(); // Cleanup listener
+}
+</code></pre>
+        <div class="note">
+            <strong>Note:</strong> The base `AnimationComponent` might need modification to support completion events or flags for the polling method shown above. See the `advanced-animation-demo` for a potential implementation.
+        </div>
+
+        <h3>Performance Considerations</h3>
+        <ul>
+            <li>Using sprite sheets (also called texture atlases) is generally much more performant than using many individual image files.</li>
+            <li>The GPU can load one large texture sheet more efficiently than many small ones.</li>
+            <li>Rendering multiple sprites from the same sheet in sequence allows the GPU to avoid switching textures (texture binding), which is a relatively expensive operation.</li>
+            <li>Tools like TexturePacker can automatically generate sprite sheets and definition files from individual images.</li>
+        </ul>
+
+        <h2>4. How the "Advanced Sprite Demo" Works</h2>
+        <p>
+            The <a href="/advanced-sprite-demo">Advanced Sprite Demo</a> focuses on setting up a scene with multiple game objects using sprites loaded from different sprite sheets, demonstrating visual variety and the use of anchors.
+        </p>
+        <h3>HTML Structure (`advanced-sprite-demo.html`)</h3>
+        <ul>
+            <li>Standard page structure with a <pre><code class="language-typescript"> &lt;canvas id="game-canvas"&gt;&lt;/canvas&gt;</code></pre>.</li>
+            <li>A `div#status` for loading messages.</li>
+        </ul>
+        <h3>Script Interaction (`advanced-sprite-demo.ts`)</h3>
+        <ul>
+            <li>Initializes core engine systems (`AssetLoader`, `InputManager`, `ObjectManager`, `Renderer`, `SceneManager`, `GameLoop`, `EventBus`, `SoundManager`, `SettingsManager`).</li>
+            <li>Loads assets defined in `manifest.json`, which includes images (`player.png`, `enemy.png`, `enemy2.png`) and their corresponding sprite sheet definitions (`player_def.json`, `enemy_def.json`, `enemy2_def.json`).</li>
+            <li>Defines a scene (`advScene`) with a 'background' and 'main' layer.</li>
+            <li>Creates a 'player' `GameObjectConfig` using `SpriteComponent` with `spriteRef: 'playerSheet/idle'` and `anchor: { x: 0.5, y: 0.5 }`. It also includes `PlayerControllerComponent` for movement.</li>
+            <li>Creates multiple 'enemy' `GameObjectConfig`s in a loop. Inside the loop:
+                <ul>
+                    <li>It randomly selects a `spriteRef` from `['enemySheet/idle', 'enemy2Sheet/idle']`.</li>
+                    <li>It assigns this random `spriteRef` and `anchor: { x: 0.5, y: 0.5 }` to the enemy's `SpriteComponent`.</li>
+                    <li>It adds an `EnemyMovementComponent`.</li>
+                </ul>
+            </li>
+            <li>Loads the scene using `SceneManager` and creates the objects using `ObjectManager`.</li>
+            <li>Starts the `GameLoop`. The `Renderer` automatically draws the starfield (as part of its default behavior) and then iterates through layers and objects, drawing each sprite based on its `SpriteComponent`'s properties (including `spriteRef`, `anchor`, and coordinates derived from the sprite definition).</li>
+        </ul>
+        <p>While this demo uses sprite sheets extensively for setup, it doesn't heavily feature the `AnimationComponent` for playback. Demos like `main.ts`, `collision-demo.ts`, or `behavior-strategy-demo.ts` provide better examples of `AnimationComponent` in action.</p>
+
+        <h3>Key Files</h3>
+        <ul>
+            <li><code>web/advanced-sprite-demo.html</code></li>
+            <li><code>src/advanced-sprite-demo.ts</code></li>
+            <li><code>src/core/components/SpriteComponent.ts</code></li>
+            <li><code>src/core/components/AnimationComponent.ts</code></li>
+            <li><code>src/core/rendering/Renderer.ts</code></li>
+            <li><code>src/core/assets/AssetLoader.ts</code></li>
+            <li><code>public/assets/manifest.json</code></li>
+            <li><code>public/assets/defs/player_def.json</code></li>
+            <li><code>public/assets/defs/enemy_def.json</code></li>
+            <li><code>public/assets/defs/enemy2_def.json</code></li>
+            <li><code>public/assets/defs/bullet1_def.json</code> (Example for animation)</li>
+            <li><code>src/types/project.ts</code> (Defines `SpriteDefinition`, `AnimationDefinition`)</li>
+        </ul>
+    </main>
+</body>
+</html>
