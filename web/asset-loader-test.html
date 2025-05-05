@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AssetLoader Test</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
-        body { font-family: sans-serif; padding: 20px; }
         pre { background-color: #eee; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; word-wrap: break-word; max-height: 300px; overflow-y: auto;}
         #status { font-weight: bold; }
         #loaded-assets img { max-width: 50px; max-height: 50px; border: 1px solid #ddd; margin: 5px; vertical-align: middle;}
@@ -14,16 +14,26 @@
     </style>
 </head>
 <body>
-    <h1>AssetLoader Test</h1>
-    <p style="text-align: center; margin-top: -10px; margin-bottom: 20px;"><a href="/how-to/asset-loader-test-howto.html">How this demo works</a></p>
-    <button id="load-button">Load Assets (from /assets/manifest.json)</button>
-    <div id="status">Status: Idle</div>
-    <h2>Manifest Content:</h2>
-    <pre id="manifest-content">Not loaded yet.</pre>
-    <h2>Loading Log:</h2>
-    <pre id="log">Click the button to start loading...</pre>
-    <h2>Loaded Assets Overview:</h2>
-    <div id="loaded-assets">None</div>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
+        <h1>AssetLoader Test</h1>
+        <p style="text-align: center; margin-top: -10px; margin-bottom: 20px;"><a href="/how-to/asset-loader-test-howto.html">How this demo works</a></p>
+        <button id="load-button">Load Assets (from /assets/manifest.json)</button>
+        <div id="status">Status: Idle</div>
+        <h2>Manifest Content:</h2>
+        <pre id="manifest-content">Not loaded yet.</pre>
+        <h2>Loading Log:</h2>
+        <pre id="log">Click the button to start loading...</pre>
+        <h2>Loaded Assets Overview:</h2>
+        <div id="loaded-assets">None</div>
+    </main> 
 
     <script type="module" src="/dist/asset-loader-test.js"></script>
 </body>

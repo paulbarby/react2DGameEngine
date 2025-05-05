@@ -1,24 +1,35 @@
+<!-- filepath: d:\Work\Fun\Space Shooter Game Engine\web\collision-demo.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collision Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
-        body { font-family: sans-serif; padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: #111; color: #eee;}
-        #game-canvas { border: 1px solid #555; background-color: #000; margin-top: 10px; }
-        p { margin: 5px 0 10px 0; }
-        #status { margin-top: 10px; font-style: italic; color: #aaa; }
+        /* Adjust canvas background if needed */
+        #game-canvas { background-color: #000; }
+        #status { margin-top: 10px; font-style: italic; color: #aaa; text-align: center; }
     </style>
 </head>
 <body>
-    <h1>Collision Demo</h1>
-    <p>Click canvas, use Arrows/WASD to move, Space to shoot.</p>
-    <p>Bullets collide with enemies. Player collides with enemies.</p>
-    <a href="how-to/collision-demo-guide.html">How-to guide</a>
-    <canvas id="game-canvas" width="800" height="600" tabindex="0">Your browser does not support the canvas element.</canvas>
-    <div id="status">Loading...</div>
+    <!-- Add Standard Header -->
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
 
-    <script type="module" src="/dist/collision-demo.js"></script>
+    <!-- Wrap content -->
+    <main class="content-container">
+        <h1>Collision Demo</h1>
+        <p style="text-align: center;">Click canvas, use Arrows/WASD to move. Bullets collide with enemies. Player collides with enemies.</p>
+        <p style="text-align: center;"><a href="/how-to/collision-demo-guide.html">How-to guide</a></p>
+        <canvas id="game-canvas" width="800" height="600" tabindex="0">Your browser does not support the canvas element.</canvas>
+        <div id="status">Loading...</div>
+
+        <script type="module" src="/dist/collision-demo.js"></script>
+    </main>
 </body>
 </html>

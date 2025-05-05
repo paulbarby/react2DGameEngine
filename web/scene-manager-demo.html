@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scene Manager Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
+
     <style>
-        body { font-family: sans-serif; padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; }
+        body { font-family: sans-serif; padding: 0; margin: 0; align-items: center; background-color: #f0f0f0; }
         #game-canvas { border: 1px solid #ccc; background-color: #fff; margin-top: 10px; }
         .controls { margin: 15px 0; }
         button { padding: 8px 15px; margin: 0 5px; font-size: 1em; cursor: pointer; }
@@ -13,14 +15,24 @@
     </style>
 </head>
 <body>
-    <h1>Scene Manager Demo</h1>
-    <div class="controls">
-        <button id="load-scene1-button">Load Scene 1</button>
-        <button id="load-scene2-button">Load Scene 2</button>
-    </div>
-    <canvas id="game-canvas" width="600" height="400" tabindex="0">Your browser does not support the canvas element.</canvas>
-    <div id="status">Loading...</div>
+     <!-- Add Standard Header -->
+     <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
 
+    <!-- Wrap content -->
+    <main class="content-container">
+        <h1>Scene Manager Demo</h1>
+        <div class="controls">
+            <button id="load-scene1-button">Load Scene 1</button>
+            <button id="load-scene2-button">Load Scene 2</button>
+        </div>
+        <canvas id="game-canvas" width="600" height="400" tabindex="0">Your browser does not support the canvas element.</canvas>
+        <div id="status">Loading...</div>
+    </main>
     <script type="module" src="/dist/scene-manager-demo.js"></script>
 </body>
 </html>

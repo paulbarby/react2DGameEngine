@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>How the InputManager Works</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        h1, h2, h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-        code { background-color: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
-        pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; border-radius: 4px; }
-        pre code { background-color: transparent; padding: 0; border-radius: 0; }
-        .container { max-width: 800px; margin: auto; }
-        a { color: #007bff; }
-        .note { background-color: #fffbe6; border-left: 4px solid #ffe58f; padding: 10px; margin: 15px 0; }
-    </style>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
 </head>
 <body>
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
     <div class="container">
         <h1>How the InputManager Works</h1>
         <p><a href="/input-manager-test">&laquo; Back to the Demo</a></p>
@@ -190,5 +190,6 @@ window.addEventListener('beforeunload', () => {
             <li><code>src/core/events/EventTypes.ts</code></li>
         </ul>
     </div>
+    </main>
 </body>
 </html>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Animation Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
         body { font-family: sans-serif; padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; background-color: #111; color: #eee;}
         #game-canvas { border: 1px solid #555; background-color: #000; margin-top: 10px; cursor: pointer; }
@@ -12,12 +13,22 @@
     </style>
 </head>
 <body>
+     <!-- Add Standard Header -->
+     <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
     <h1>Advanced Animation Demo</h1>
     <p>Click on the canvas to create an explosion animation and sound.</p>
     <p>Explosions are removed automatically after playing once.</p>
     <canvas id="game-canvas" width="800" height="600" tabindex="0">Your browser does not support the canvas element.</canvas>
     <div id="status">Loading...</div>
-
+        </main>
     <script type="module" src="/dist/advanced-animation-demo.js"></script>
 </body>
 </html>

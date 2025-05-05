@@ -1,0 +1,27 @@
+/* Basic reset/defaults */
+body { font-family: sans-serif; margin: 0; background-color: #f0f0f0; color: #333; line-height: 1.6; }
+a { color: #007bff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3, h4, h5, h6 { margin-top: 1.5em; margin-bottom: 0.5em; color: #0056b3; }
+h1 { border-bottom: 2px solid #dee2e6; padding-bottom: 0.3em; }
+h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
+code { background-color: #eee; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; border-radius: 4px; }
+pre code { background-color: transparent; padding: 0; border-radius: 0; }
+ul, ol { padding-left: 20px; }
+li { margin-bottom: 0.5em; }
+
+/* Layout */
+.main-header { background-color: #343a40; padding: 10px 20px; }
+.main-header nav a { color: #fff; margin: 0 10px; font-weight: bold; }
+.main-header nav a:hover { color: #1abc9c; text-decoration: none; }
+.content-container { max-width: 900px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+/* Specific elements */
+button { /* Basic button styling */ }
+canvas { display: block; margin: 10px auto; border: 1px solid #ccc; }
+.note { background-color: #fffbe6; border-left: 4px solid #ffe58f; padding: 10px; margin: 15px 0; }
+.panel { /* Styles from main-menu-demo */ }
+.close-button { /* Styles from main-menu-demo */ }
+/* Add other common styles as needed */
+.note { background-color: #fffbe6; border-left: 4px solid #ffe58f; padding: 10px; margin: 15px 0; }

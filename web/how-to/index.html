@@ -1,0 +1,70 @@
+<!-- filepath: d:\Work\Fun\Space Shooter Game Engine\web\index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Engine How-To</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
+    <style>
+        /* Keep specific styles for this page if needed, or move to main.css */
+        .content-container ul {
+            list-style: none;
+            padding: 0;
+        }
+        .content-container li {
+            margin-bottom: 1em;
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 1em;
+        }
+        .content-container li:last-child {
+            border-bottom: none;
+        }
+        .content-container a {
+            font-weight: 500;
+            margin-right: 10px;
+            /* Override default button-like style from main.css for this list */
+            padding: 0;
+            border: none;
+            display: inline; /* Make it behave like a normal link */
+        }
+        .content-container a:hover, .content-container a:focus {
+             background-color: transparent; /* No background on hover */
+             color: #0056b3; /* Standard link hover color */
+             text-decoration: underline; /* Standard link hover underline */
+        }
+        .content-container p {
+            text-align: left; /* Align description text left */
+            color: #343a40; /* Standard text color */
+        }
+    </style>
+</head>
+<body>
+    <!-- Add Standard Header -->
+    <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
+        <h1>Engine How-To's</h1>
+        <p>Select a module to see its how to:</p>
+        <ul>
+            <li>
+                <a href="asset-loader-guide.html">Asset Loader Guide</a> - How to use the Asset Loader module to load assets from a manifest file.
+                </li>
+            <li>
+                <a href="collision-guide.html">Collision Guide</a> - How to use the Collision module to detect collisions between objects.
+            </li>
+            <li>
+                <a href="input-manager-guide.html">Input Manager Guide</a> - How to use the Input Manager module to handle keyboard and mouse input.
+            </li>
+           
+           
+        </ul>
+    </main>
+</body>
+</html>

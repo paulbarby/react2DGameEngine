@@ -4,17 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Main Menu UI Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
+    
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            margin: 0;
-        }
+        
         .menu-container {
             background-color: #34495e;
             padding: 30px 40px;
@@ -84,9 +77,38 @@
         .close-button:hover {
             background-color: #e74c3c;
         }
+
+        .content-container {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            margin: 0;
+       }
+       /* Hide standard header for this full-page demo */
+       .main-header {
+           display: block;
+       }
     </style>
 </head>
 <body>
+     <!-- Standard Header is hidden by CSS above -->
+     <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header> 
+    <main class="content-container">
     <div class="menu-container">
         <h1>Space Shooter</h1>
         <div class="menu-options">
@@ -122,7 +144,7 @@
             <button class="close-button" data-panel="options-panel">Close</button>
         </div>
     </div>
-
+</main>
     <script type="module" src="/dist/main-menu-demo.js"></script>
 </body>
 </html>

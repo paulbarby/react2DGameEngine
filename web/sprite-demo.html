@@ -4,18 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sprite Rendering Demo</title>
+    <link rel="stylesheet" href="/styles/main.css"> <!-- Link standard CSS -->
     <style>
-        body { font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         #game-canvas { border: 1px solid black; background-color: #eee; margin-top: 10px; }
         #status { margin-top: 10px; font-style: italic; color: #555; }
     </style>
 </head>
 <body>
+     <!-- Add Standard Header -->
+     <header class="main-header">
+        <nav>
+            <a href="/">Demos</a> |
+            <a href="/how-to/">How-Tos</a>
+        </nav>
+    </header>
+
+    <!-- Wrap content -->
+    <main class="content-container">
     <h1>Sprite Rendering Demo</h1>
     <p>Displays a sprite loaded via AssetLoader and rendered using Renderer/GameLoop.</p>
     <p>Click the canvas below, then use Arrow Keys to move the sprite.</p>
     <canvas id="game-canvas" width="600" height="400" tabindex="0">Your browser does not support the canvas element.</canvas>
     <div id="status">Loading...</div>
+    </main>
 
     <script type="module" src="/dist/sprite-demo.js"></script>
 </body>
